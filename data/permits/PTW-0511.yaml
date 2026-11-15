@@ -1,0 +1,7 @@
+id: PTW-0511
+title: Reinstate and start condensate pump A
+kind: operation
+description: Pump B has tripped. Open suction to condensate injection pump A and start it.
+energises: [P-A]
+operates:
+  - {tag: SV-A, to: open}

@@ -1,0 +1,6 @@
+id: PTW-0846
+title: Flush cooler drain lines with flush water
+kind: operation
+description: Open the flush water inlet XV-9 to flush the cooler drain lines.
+operates:
+  - {tag: XV-9, to: open}

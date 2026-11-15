@@ -1,0 +1,6 @@
+id: PTW-0848
+title: Replace pump A suction strainer element
+kind: maintenance
+description: Open strainer STR-A and replace the element.
+works_on: [STR-A]
+relies_on: [SV-A, DV-A, DR-A]

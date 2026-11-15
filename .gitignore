@@ -1,0 +1,12 @@
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.venv/
+*.rl.lock
+*.wal
+.DS_Store
+# private working files
+CLAUDE.md
+SUBMISSION.md
+docs/PLAN.md
+.claude/

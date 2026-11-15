@@ -1,0 +1,6 @@
+id: PTW-0851
+title: Overhaul condensate pump A
+kind: maintenance
+description: Planned maintenance on pump A with the casing opened.
+works_on: [P-A]
+relies_on: [SV-A, DV-A]

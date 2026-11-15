@@ -1,0 +1,17 @@
+# Start-of-shift state: the plant plus the permits already active.
+plant: ../plants/condensate_unit.yaml
+permits:
+  - id: PTW-0504
+    title: PSV-504 recertification (relief valve removed to workshop)
+    kind: maintenance
+    status: active
+    description: Remove pump A discharge relief valve PSV-504 for recertification. Blind flange fitted on the open pipework.
+    works_on: [PSV-504]
+    relies_on: [BF-504]
+  - id: PTW-0840
+    title: Cooler E-1 tube bundle clean
+    kind: maintenance
+    status: active
+    description: Open export condensate cooler E-1 and clean the tube bundle. Cooler bypassed.
+    works_on: [E-1]
+    relies_on: [EV-1, EV-2]

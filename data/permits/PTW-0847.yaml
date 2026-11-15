@@ -1,0 +1,9 @@
+id: PTW-0847
+title: Replace gasket on export line spool
+kind: maintenance
+description: Break the export line downstream of the cooler to replace a leaking gasket.
+works_on: [L-EX]
+relies_on: [EV-2, BV-1, MOL-XV]
+operates:
+  - {tag: BV-1, to: closed}
+  - {tag: MOL-XV, to: closed}

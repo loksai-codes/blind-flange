@@ -1,0 +1,6 @@
+id: PTW-0849
+title: Inspect pump B relief line
+kind: maintenance
+description: Break the pump B relief line for internal inspection. Block valve RLV-505 listed as the isolation.
+works_on: [L-RL-505]
+relies_on: [RLV-505]

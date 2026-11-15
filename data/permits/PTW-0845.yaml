@@ -1,0 +1,6 @@
+id: PTW-0845
+title: Stroke-test cooler outlet valve EV-2
+kind: maintenance
+description: Function test of the cooler E-1 outlet isolation valve.
+operates:
+  - {tag: EV-2, to: open}

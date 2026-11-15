@@ -1,0 +1,45 @@
+# Test cases. Expected verdicts were fixed before the checks were first run.
+# Each case requests one permit
+# against the start-of-shift scenario, optionally after some setup.
+#   expect: the verdict a competent permit coordinator should reach
+#   shared_tag: whether the request shares an equipment tag with an active permit
+scenario: ../data/scenarios/condensate_unit.yaml
+cases:
+  - name: Start pump A while its relief valve is out
+    request: PTW-0511
+    expect: BLOCK
+    note: The Piper Alpha pattern. Two permits, no shared tag, one path.
+  - name: Start pump A after the relief line is blocked in
+    setup: [{set: [RLV-504, closed]}]
+    request: PTW-0511
+    expect: CLEAR
+    note: Same permit, one valve closed. The path no longer exists.
+  - name: Stroke-test a valve another job relies on
+    request: PTW-0845
+    expect: BLOCK
+  - name: Open flush water into an opened cooler
+    request: PTW-0846
+    expect: BLOCK
+    note: XV-9 is not on the cooler permit's isolation list.
+  - name: Second job behind an isolation already in use
+    request: PTW-0847
+    expect: HOLD
+  - name: Strainer change on the isolated pump train
+    request: PTW-0848
+    expect: CLEAR
+    note: Next to the PSV job but not connected to live pressure.
+  - name: Line break with the isolation valve still open
+    request: PTW-0849
+    expect: BLOCK
+    note: A single-permit error. No other permit is involved.
+  - name: External painting
+    request: PTW-0850
+    expect: CLEAR
+  - name: Pump overhaul on the isolated train
+    request: PTW-0851
+    expect: CLEAR
+  - name: Start pump A while it is being overhauled
+    setup: [{approve: PTW-0851}, {set: [RLV-504, closed]}]
+    request: PTW-0511
+    expect: BLOCK
+    note: The obvious clash. Tag matching catches this one too.
