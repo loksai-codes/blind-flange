@@ -32,7 +32,7 @@ class StoreError(Exception):
 
 
 def query(name: str) -> str:
-    return (QUERIES / f"{name}.cypher").read_text()
+    return (QUERIES / f"{name}.cypher").read_text(encoding="utf-8")
 
 
 def connect(path: str | Path = ":memory:", read_only: bool = False):
@@ -72,7 +72,7 @@ def now() -> str:
 
 def load_yaml(path: str | Path) -> dict:
     try:
-        return yaml.safe_load(Path(path).read_text()) or {}
+        return yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
     except FileNotFoundError:
         raise StoreError(f"file not found: {path}") from None
 
@@ -80,7 +80,7 @@ def load_yaml(path: str | Path) -> dict:
 # ---------------------------------------------------------------- build
 
 def init_schema(conn) -> None:
-    text = "\n".join(l for l in SCHEMA.read_text().splitlines() if not l.strip().startswith("//"))
+    text = "\n".join(l for l in SCHEMA.read_text(encoding="utf-8").splitlines() if not l.strip().startswith("//"))
     for stmt in (s.strip() for s in text.split(";")):
         if stmt:
             conn.execute(stmt)
