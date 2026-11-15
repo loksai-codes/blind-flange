@@ -57,7 +57,8 @@ def main() -> int:
             "These cases were written by the project author on an illustrative plant. "
             "They show what the checks do. They are not evidence of field performance."]
     text = "\n".join(out) + "\n"
-    (HERE / "results.md").write_text(text, encoding="utf-8")
+    (HERE / "results.md").write_text(text, encoding="utf-8", newline="
+")
     print(text)
     return 0 if g_ok == len(rows) else 1
 
