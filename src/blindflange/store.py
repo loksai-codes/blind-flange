@@ -8,14 +8,12 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from importlib import resources
 from pathlib import Path
 
 import relate
 import yaml
 
-ROOT = Path(__file__).resolve().parents[2]
-QUERIES = ROOT / "queries"
-SCHEMA = ROOT / "schema" / "schema.cypher"
 
 LABELS = {"valve": "Valve", "check_valve": "Valve", "psv": "Valve", "blind": "Blind", "line": "Line"}
 STATES = {
@@ -32,7 +30,12 @@ class StoreError(Exception):
 
 
 def query(name: str) -> str:
-    return (QUERIES / f"{name}.cypher").read_text(encoding="utf-8")
+    """The text of queries/<name>.cypher, as shipped inside the package."""
+    return resources.files("blindflange.queries").joinpath(f"{name}.cypher").read_text(encoding="utf-8")
+
+
+def schema() -> str:
+    return resources.files("blindflange.schema").joinpath("schema.cypher").read_text(encoding="utf-8")
 
 
 def connect(path: str | Path = ":memory:", read_only: bool = False):
@@ -80,7 +83,7 @@ def load_yaml(path: str | Path) -> dict:
 # ---------------------------------------------------------------- build
 
 def init_schema(conn) -> None:
-    text = "\n".join(l for l in SCHEMA.read_text(encoding="utf-8").splitlines() if not l.strip().startswith("//"))
+    text = "\n".join(l for l in schema().splitlines() if not l.strip().startswith("//"))
     for stmt in (s.strip() for s in text.split(";")):
         if stmt:
             conn.execute(stmt)
