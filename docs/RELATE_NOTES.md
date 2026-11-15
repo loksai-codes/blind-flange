@@ -1,7 +1,7 @@
 # Relate notes
 
-Verified on 15 Nov 2026 with `relate-db` 1.0.1 from PyPI, Python 3.13, Linux.
-Not yet verified on Windows or macOS.
+Verified on 15 Nov 2026 with `relate-db` 1.0.1 from PyPI, Python 3.13, Linux,
+and again on Windows 11 with Python 3.12. Not yet verified on macOS.
 
 ## Works as used in this repo
 - `relate.connect("path.rl")` creates and opens a single-file store.
@@ -31,6 +31,19 @@ Not yet verified on Windows or macOS.
   ```
 - `relate.connect(path, read_only=True)` refuses autocommit writes.
 
+## Windows (Windows 11, Python 3.12, relate-db 1.0.1)
+- `pip install relate-db` installs a wheel; no compiler needed. Every test,
+  the eval and the headline check pass.
+- While one connection has a `.rl` file open, a second `relate.connect` on the
+  same file is refused with `OperationalError: storage locked`, whether or not
+  it asks for `read_only=True`. So `reach` or `handover` cannot run while
+  another process holds the store open. Each CLI command opens the store and
+  closes it before exiting.
+- After `close()` the file can be deleted or overwritten straight away.
+- On machines with Windows Application Control, the `blindflange.exe` launcher
+  that pip generates can be blocked as unsigned. `python -m blindflange` runs
+  the same code and is what the Makefile uses.
+
 ## Observed but not relied on
 - A read-only connection accepted writes inside an explicit transaction that
   was then rolled back. This is not documented, so `check` opens the store
@@ -47,5 +60,4 @@ Not yet verified on Windows or macOS.
 - The `relate` command-line tool and `relate serve --mcp`. `pip install
   relate-db` does not install a `relate` executable. Find the documented
   install route before planning around it.
-- Behaviour on Windows, including file locking on the `.rl` file.
 - Performance beyond a few hundred nodes.

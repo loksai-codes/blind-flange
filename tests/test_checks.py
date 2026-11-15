@@ -109,3 +109,17 @@ def test_unknown_tag_is_rejected(conn):
 
 def test_no_standing_hazards_at_start_of_shift(conn):
     assert checks.standing_hazards(conn) == []
+
+
+def test_cli_runs_as_a_python_module(tmp_path):
+    import subprocess
+    import sys
+    out = tmp_path / "s.rl"
+    built = subprocess.run([sys.executable, "-m", "blindflange", "build", str(SCENARIO), "-o", str(out)],
+                           capture_output=True, text=True)
+    assert built.returncode == 0, built.stderr
+    checked = subprocess.run([sys.executable, "-m", "blindflange", "check",
+                              str(ROOT / "data" / "permits" / "PTW-0511.yaml"), "--store", str(out)],
+                             capture_output=True, text=True)
+    assert checked.returncode == 2, checked.stderr
+    assert checked.stdout.startswith("BLOCK  PTW-0511")
