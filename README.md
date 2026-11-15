@@ -80,6 +80,8 @@ blindflange check data/permits/PTW-0511.yaml --store stores/condensate_unit.rl
 
 The third command prints the BLOCK result shown at the top of this page.
 
+If your system blocks the `blindflange` launcher (Windows Application Control can refuse unsigned `.exe` files), use `python -m blindflange` in its place. Every command below works either way.
+
 | Command | What it does |
 | --- | --- |
 | `blindflange check <permit.yaml> --store <file>` | Check a permit. Changes nothing. Add `--json` for machine output. |
