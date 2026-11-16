@@ -21,6 +21,7 @@ Expected and actual results are `conflict_verdict / assessment_status`. `none` m
 | Unrelated permit while a worksite is already exposed | condensate | HOLD / COMPLETE | HOLD / COMPLETE | PASS | yes | same | 6 hops |
 | Close the valve that exposes the worksite | condensate | CLEAR / COMPLETE | CLEAR / COMPLETE | n/a | yes | same | - |
 | Second source into a worksite that is already exposed | condensate | BLOCK / COMPLETE | BLOCK / COMPLETE | PASS | yes | same | 6 hops |
+| Only a non-return valve between the live header and the work | condensate | none / INCOMPLETE | none / INCOMPLETE | PASS | yes | same | 10 hops |
 | Remove a valve from a live line | condensate | BLOCK / COMPLETE | BLOCK / COMPLETE | n/a | yes | same | 3 hops |
 | Remove a blind (ambiguous) | condensate | none / ERROR | none / ERROR | n/a | yes | same | - |
 | Relief block valve state unknown, pump start | condensate | none / INCOMPLETE | none / INCOMPLETE | PASS | yes | same | 4 hops |
@@ -41,11 +42,11 @@ Expected and actual results are `conflict_verdict / assessment_status`. `none` m
 | Restart compression, bypass last seen closed two days ago | gas_plant | none / INCOMPLETE | none / INCOMPLETE | PASS | yes | same | 12 hops |
 | Restart compression with a search bound shorter than the route | gas_plant | none / INCOMPLETE | none / INCOMPLETE | PASS | yes | same | - |
 
-- Graph check: 34 of 34 cases match the expected verdict, status and finding codes.
+- Graph check: 35 of 35 cases match the expected verdict, status and finding codes.
 - Risky requests stopped (BLOCK or HOLD expected): graph 18 of 18; tag matching 8 of 15 (permit requests only; it cannot assess a state change).
 - Safe requests wrongly stopped: graph 0 of 9, tag matching 0 of 9.
-- Oracle agreement on every hazard set: 34 of 34.
-- Recorded evaluations reproduced exactly by replay: 34 of 34.
+- Oracle agreement on every hazard set: 35 of 35.
+- Recorded evaluations reproduced exactly by replay: 35 of 35.
 
 ## Misses
 

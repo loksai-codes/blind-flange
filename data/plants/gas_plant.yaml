@@ -906,8 +906,10 @@ connections:
   - E-210
 - - E-210
   - NRV-210
+  - forward
 - - NRV-210
   - XV-213
+  - forward
 - - XV-213
   - L-213
 - - L-SUCT
@@ -954,8 +956,10 @@ connections:
   - E-220
 - - E-220
   - NRV-220
+  - forward
 - - NRV-220
   - XV-223
+  - forward
 - - XV-223
   - L-223
 - - L-SUCT
@@ -1004,8 +1008,10 @@ connections:
   - E-230
 - - E-230
   - NRV-230
+  - forward
 - - NRV-230
   - XV-233
+  - forward
 - - XV-233
   - L-233
 - - L-220D
@@ -1094,8 +1100,10 @@ connections:
   - L-41AD
 - - L-41AD
   - NRV-41A
+  - forward
 - - NRV-41A
   - DV-41A
+  - forward
 - - DV-41A
   - L-CD
 - - L-41AS
@@ -1122,8 +1130,10 @@ connections:
   - L-41BD
 - - L-41BD
   - NRV-41B
+  - forward
 - - NRV-41B
   - DV-41B
+  - forward
 - - DV-41B
   - L-CD
 - - L-41BS
@@ -1150,8 +1160,10 @@ connections:
   - L-41CD
 - - L-41CD
   - NRV-41C
+  - forward
 - - NRV-41C
   - DV-41C
+  - forward
 - - DV-41C
   - L-CD
 - - L-41CS

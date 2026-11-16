@@ -46,11 +46,12 @@ def random_plant(rng: random.Random):
         a, b = rng.sample(tags, 2)
         if (a, b) not in edges and (b, a) not in edges:
             edges.add((a, b))
+    edges = {e + ("forward",) if rng.random() < 0.2 else e for e in edges}   # some one-way connections
     permits = []
     for j in range(rng.randint(1, 3)):
         permits.append({"id": f"PTW-{j}", "works_on": rng.sample(tags, 1),
                         "relies_on": rng.sample(tags, rng.randint(0, 2))})
-    return comps, sorted(edges), permits
+    return comps, sorted(edges, key=lambda e: e[:2]), permits
 
 
 def random_request(rng, comps):

@@ -71,6 +71,7 @@ class Finding:
     other_service_sources: list[str] = field(default_factory=list)  # also reach it, through no declared tie-in
     path: list[str] = field(default_factory=list)
     uncertain: list[str] = field(default_factory=list)    # unconfirmed components the path passes
+    against_flow: list[str] = field(default_factory=list) # hops that run against a declared one-way flow
     evidence: list[str] = field(default_factory=list)     # graph edges, for one-hop findings
     message: str = ""
 
@@ -180,11 +181,14 @@ def _code(owner: str, relation: str, pid: str) -> str:
     return "WORKSITE_NOT_ISOLATED" if owner == pid else "PRESSURE_REACHES_OPEN_WORK"
 
 
-def _message(code: str, target: str, permit: str | None, certainty: str, origin: str) -> str:
+def _message(code: str, target: str, permit: str | None, certainty: str, origin: str,
+             against_flow: list[str] | tuple = ()) -> str:
     would = "could" if certainty == POSSIBLE else ("would" if origin == INTRODUCED else "already can")
     is_ = "may be" if certainty == POSSIBLE else "is"
     msg = EXPLAIN[code].format(target=target, permit=permit or "another permit", would=would, is_=is_,
                                **{"is": is_})
+    if against_flow:
+        msg += f" The route runs against declared flow at {', '.join(against_flow)}."
     if origin == EXISTING:
         msg += " This hazard exists already; the request does not remove it."
     return msg
@@ -266,6 +270,14 @@ def assess(conn, req: dict, hypothetical: list[dict] | tuple = (), max_hops: int
         g["sources" if tied else "other"].append(row["source"])
         if row["hops"] < g["row"]["hops"]:
             g["row"] = row
+    # A hazard proven from one source is not made uncertain by another source whose only
+    # route is unconfirmed (an unknown valve, or against declared flow): fold those sources in.
+    for key in [k for k in groups if k[4] == POSSIBLE]:
+        proven = key[:4] + (PROVEN,)
+        if proven in groups:
+            groups[proven]["sources"] += groups[key]["sources"]
+            groups[proven]["other"] += groups[key]["other"]
+            del groups[key]
     for (code, target, other, origin, certainty), g in groups.items():
         row = g["row"]
         if certainty == POSSIBLE:
@@ -277,8 +289,8 @@ def assess(conn, req: dict, hypothetical: list[dict] | tuple = (), max_hops: int
         found.append(Finding(code, sev, origin, certainty, target, other, row["title"] if other else None,
                              sources=sorted(set(g["sources"])),
                              other_service_sources=sorted(set(g["other"]) - set(g["sources"])),
-                             path=row["path"], uncertain=row["uncertain"],
-                             message=_message(code, target, other, certainty, origin)))
+                             path=row["path"], uncertain=row["uncertain"], against_flow=row["against_flow"],
+                             message=_message(code, target, other, certainty, origin, row["against_flow"])))
 
     order = {BLOCK: 0, HOLD: 1, UNCONFIRMED: 2}
     found.sort(key=lambda f: (order[f.severity], f.origin != INTRODUCED, f.code, f.target, f.permit or ""))
@@ -292,6 +304,7 @@ def assess(conn, req: dict, hypothetical: list[dict] | tuple = (), max_hops: int
         "introduced": sorted(label(k) for k in after_possible if k not in before_possible),
         "remaining": sorted(label(k) for k in after_possible if k in before_possible),
         "resolved": sorted(label(k) for k in before_possible if k not in after_possible),
+        "proven": sorted(label(k) for k in after_proven),
     }
 
     reasons = []
@@ -302,7 +315,12 @@ def assess(conn, req: dict, hypothetical: list[dict] | tuple = (), max_hops: int
     for f in found:
         if f.certainty == POSSIBLE:
             relevant.update(f.uncertain)
-            reasons.append(f"{f.code} at {f.target} depends on unconfirmed state: {', '.join(f.uncertain) or f.target}")
+            why = []
+            if f.uncertain or not f.against_flow:
+                why.append(f"unconfirmed state: {', '.join(f.uncertain) or f.target}")
+            if f.against_flow:
+                why.append(f"a route against declared flow: {', '.join(f.against_flow)}")
+            reasons.append(f"{f.code} at {f.target} depends on {' and '.join(why)}")
     disclosed = [dict(u, relevant=u["tag"] in relevant) for u in unknowns]
 
     incomplete = bool(reasons)

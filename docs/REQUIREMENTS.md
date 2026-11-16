@@ -3,8 +3,8 @@
 Status basis: 16 Nov 2026. Verified by a fresh `git clone`:
 - Windows 11, Python 3.12, new virtual environment: `pip install -e .` and the
   README's check command gave BLOCK (exit 2).
-- Current numbers, measured by `scripts/stats.py` and checked by a test: <!--stat:tests_passed-->250<!--/stat--> tests pass,
-  `eval/compare.py` matches <!--stat:eval_matched-->34<!--/stat--> of <!--stat:eval_cases-->34<!--/stat--> cases, and <!--stat:mutations_caught_text-->11 of 11<!--/stat--> mutations are caught.
+- Current numbers, measured by `scripts/stats.py` and checked by a test: <!--stat:tests_passed-->258<!--/stat--> tests pass,
+  `eval/compare.py` matches <!--stat:eval_matched-->35<!--/stat--> of <!--stat:eval_cases-->35<!--/stat--> cases, and <!--stat:mutations_caught_text-->12 of 12<!--/stat--> mutations are caught.
 - GitHub Actions (`.github/workflows/ci.yml`) installs with `pip install .`, runs the tests and
   the eval on ubuntu-latest, macos-latest and windows-latest with Python 3.12, and fails if
   the committed stores or eval results change. All three passed (run 43852804742, 16 Nov).
@@ -98,7 +98,7 @@ Permit status (authorization) is kept separate from component observed state. Ap
 | FR-21 | HTML or SVG evidence view | Path, barriers and unknown states shown | DONE | `blindflange report`; `test_evaluations_replay_and_report` |
 | FR-22 | Agent tools `assess_change` and `what_if` | Same result as the CLI | DONE | `blindflange mcp`; `tests/test_agent.py` including a stdio session |
 | FR-23 | `reach` and `handover` commands | Run against a store | DONE | `reach --set` for what-if; `test_handover_lists_permits_and_hazards` |
-| FR-24 | Evaluation suite with baselines and reported misses | Tag matching, independent oracle, list of misses | DONE | <!--stat:eval_cases-->34<!--/stat--> cases; `eval/oracle.py`; `## Misses` in `eval/results.md`; <!--stat:random_plants-->120<!--/stat--> random plants in `tests/test_oracle.py` |
+| FR-24 | Evaluation suite with baselines and reported misses | Tag matching, independent oracle, list of misses | DONE | <!--stat:eval_cases-->35<!--/stat--> cases; `eval/oracle.py`; `## Misses` in `eval/results.md`; <!--stat:random_plants-->120<!--/stat--> random plants in `tests/test_oracle.py` |
 | FR-25 | Plant: two or more sources, a bypass, a path of six or more hops | Verified by a test | DONE | `tests/test_gas_plant.py` (12-hop route through bypass BV-231) |
 | FR-26 | `build` creates a store from a scenario | Store built and checkable | DONE | `tests/test_cli.py` fixture |
 | FR-27 | `approve` and `close` commands | Approve stores a CLEAR or HOLD permit; close reports isolations still needed | DONE | `test_approve_stores_permit_applies_state_changes_and_bumps_revision`, `test_closing_a_permit_reports_isolations_still_needed` |
@@ -177,7 +177,7 @@ A what-if repeats the check with a hypothetical change and always re-runs the wh
 | Layer | Question | Status |
 |---|---|---|
 | Cypher against an independent traversal on randomized small topologies | Do both compute the same specified behaviour? | Done: <!--stat:random_plants-->120<!--/stat--> random plants, plus every eval case |
-| Hand-written adversarial cases | Are the edge cases handled? | Done: <!--stat:eval_cases-->34<!--/stat--> eval cases and the rule tests |
+| Hand-written adversarial cases | Are the edge cases handled? | Done: <!--stat:eval_cases-->35<!--/stat--> eval cases and the rule tests |
 | Practitioner review | Are the scenario, assumptions and wording plausible? | Not started |
 
 Adversarial cases, all covered: worksite already exposed; second source added; removed inline component; barrier reached but not passed; unknown valve off and on a bypass; tied shortest paths; old evaluation reopened.

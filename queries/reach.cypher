@@ -12,5 +12,9 @@ RETURN x.tag AS tag, x.kind AS kind, coalesce(x.state, 'unknown') AS state, leng
        [n IN nodes(path)[0..-1]
           WHERE coalesce(n.state, 'unknown') = 'unknown' OR coalesce(n.observed_at, '') < $stale_before
              OR n.planned_state IS NOT NULL
-          | n.tag] AS uncertain
+          | n.tag] AS uncertain,
+       [i IN range(0, length(path) - 1)
+          WHERE relationships(path)[i].flow_from IS NOT NULL
+            AND relationships(path)[i].flow_from <> nodes(path)[i].tag
+          | nodes(path)[i].tag + '->' + nodes(path)[i + 1].tag] AS against_flow
 ORDER BY hops, tag

@@ -362,7 +362,9 @@ def _load(conn, components: list[dict], connections: list, as_of: str, max_age_h
     comp_rows = _component_rows(components, as_of)
     for label in LABELS:
         run(conn, f"load_{label.lower()}", rows=comp_rows)
-    run(conn, "load_connections", pairs=[list(p) for p in connections])
+    run(conn, "load_connections", pairs=[{"a": p[0], "b": p[1],
+                                          "flow_from": p[0] if len(p) > 2 and p[2] == "forward" else None}
+                                         for p in connections])
 
 
 def _fill(conn, scenario: dict, plant: dict, plant_name: str) -> None:
@@ -430,7 +432,8 @@ def snapshot(conn) -> dict:
                   "plant": s["plant"], "tie_ins": [t.split(">", 1) for t in s["tie_ins"]],
                   "mode": s["mode"]},
         "components": comps,
-        "connections": [[r["a"], r["b"]] for r in run(conn, "snapshot_connections")],
+        "connections": [[r["a"], r["b"]] + (["forward"] if r["flow_from"] == r["a"] else [])
+                        for r in run(conn, "snapshot_connections")],
         "permits": [{k: v for k, v in p.items() if v not in (None, [])} for p in run(conn, "snapshot_permits")],
     }
 

@@ -145,6 +145,8 @@ def cmd_reach(a) -> int:
         stop = "  <- stops here" if r["state"] in ("closed", "installed") else (
             "  <- open end" if r["state"] == "removed" else "")
         unc = f"  (via unconfirmed {', '.join(r['uncertain'])})" if r["uncertain"] else ""
+        if r.get("against_flow"):
+            unc += f"  (against declared flow at {', '.join(r['against_flow'])})"
         print(f"  {r['hops']:>2} hop{'s' if r['hops'] != 1 else ' '}  {r['tag']:<10} {r['kind']:<13} {r['state']}{stop}{unc}")
     return 0
 

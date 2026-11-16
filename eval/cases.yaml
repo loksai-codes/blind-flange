@@ -105,6 +105,14 @@ cases:
     expect: BLOCK
     codes: [PRESSURE_REACHES_OPEN_WORK]
     note: Flush water is a new source of pressure on the same worksite.
+  - name: Only a non-return valve between the live header and the work
+    scenario: condensate
+    setup: [{set: [DV-A, open]}]
+    request: PTW-0854
+    expect: none
+    status: INCOMPLETE
+    codes: [WORKSITE_NOT_ISOLATED]
+    note: The only route runs backwards through NRV-A. A check valve is not an isolation, so it cannot be confirmed.
   - name: Remove a valve from a live line
     scenario: condensate
     request: {set: [DV-B, removed]}

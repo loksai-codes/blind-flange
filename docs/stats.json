@@ -1,17 +1,17 @@
 {
-  "tests_passed": 250,
-  "tests_total": 250,
+  "tests_passed": 258,
+  "tests_total": 258,
   "tests_failed": 0,
   "random_plants": 120,
-  "eval_cases": 34,
-  "eval_matched": 34,
-  "eval_no_verdict": 7,
+  "eval_cases": 35,
+  "eval_matched": 35,
+  "eval_no_verdict": 8,
   "risky_stopped_by_graph": "18 of 18",
   "tag_matching_stopped": "8 of 15",
-  "oracle_agreed": 34,
-  "replay_same": 34,
-  "mutations_total": 11,
-  "mutations_caught": 11,
+  "oracle_agreed": 35,
+  "replay_same": 35,
+  "mutations_total": 12,
+  "mutations_caught": 12,
   "mutations": [
     {
       "name": "M1 unknown state treated as closed",
@@ -64,10 +64,15 @@
       "first_failure": "tests/test_validate.py::test_an_observation_needs_an_observer[]"
     },
     {
+      "name": "M12 declared flow ignored in the proven pass",
+      "caught": true,
+      "first_failure": "tests/test_flow.py::test_route_against_declared_flow_is_possible_not_proven"
+    },
+    {
       "name": "M11 live store assessed at its as_of, not now",
       "caught": true,
       "first_failure": "tests/test_live.py::test_live_store_ages_observations_as_the_shift_goes_on"
     }
   ],
-  "mutations_caught_text": "11 of 11"
+  "mutations_caught_text": "12 of 12"
 }

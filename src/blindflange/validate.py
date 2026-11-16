@@ -129,12 +129,21 @@ def plant(data) -> list[str]:
     if not isinstance(conns, list):
         return problems + ["'connections' must be a list of [tag, tag] pairs"]
     pairs: dict[frozenset, int] = {}
+    check_valves = {c.get("tag") for c in comps if isinstance(c, dict) and c.get("kind") == "check_valve"}
     for i, pair in enumerate(conns, 1):
         where = f"connection {i}"
-        if not (isinstance(pair, list) and len(pair) == 2 and all(_text(t) for t in pair)):
-            problems.append(f"{where}: must be a pair of tags like [P-A, L-PD-A], got {pair!r}")
+        if not (isinstance(pair, list) and len(pair) in (2, 3) and all(_text(t) for t in pair)):
+            problems.append(f"{where}: must be a pair of tags like [P-A, L-PD-A], or [A, B, forward] "
+                            f"for one-way flow from A to B, got {pair!r}")
             continue
-        a, b = pair
+        a, b = pair[:2]
+        if len(pair) == 3 and pair[2] != "forward":
+            problems.append(f"connection {i} [{a}, {b}]: the third item declares flow and must be 'forward' "
+                            f"(flow from {a} to {b}), got {pair[2]!r}")
+        if len(pair) == 2 and check_valves & {a, b}:
+            problems.append(f"connection {i} [{a}, {b}]: a check valve is one-way; declare its flow "
+                            f"as [upstream, downstream, forward]")
+        pair = [a, b]
         where = f"connection {i} [{a}, {b}]"
         for t in (a, b):
             if t not in seen:

@@ -43,9 +43,10 @@ UNWIND $rows AS r WITH r WHERE r.label = 'Valve' CREATE (c:Component:Valve) SET 
 UNWIND $rows AS r WITH r WHERE r.label = 'Blind' CREATE (c:Component:Blind) SET c = r.props
 
 // :load_connections
+// flow_from: the tag pressure may flow from on a one-way connection (null = both ways).
 UNWIND $pairs AS p
-MATCH (a:Component {tag: p[0]}), (b:Component {tag: p[1]})
-CREATE (a)-[:CONNECTED_TO]->(b)
+MATCH (a:Component {tag: p.a}), (b:Component {tag: p.b})
+CREATE (a)-[:CONNECTED_TO {flow_from: p.flow_from}]->(b)
 
 // :component
 MATCH (c:Component {tag: $tag})
@@ -129,8 +130,8 @@ RETURN c.tag AS tag, c.kind AS kind, c.name AS name, c.state AS state, c.normal 
 ORDER BY tag
 
 // :snapshot_connections
-MATCH (a:Component)-[:CONNECTED_TO]->(b:Component)
-RETURN a.tag AS a, b.tag AS b ORDER BY a, b
+MATCH (a:Component)-[r:CONNECTED_TO]->(b:Component)
+RETURN a.tag AS a, b.tag AS b, r.flow_from AS flow_from ORDER BY a, b
 
 // :snapshot_permits
 MATCH (p:Permit) WHERE p.status = 'active'

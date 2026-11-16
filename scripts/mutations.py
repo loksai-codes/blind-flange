@@ -74,6 +74,10 @@ MUTATIONS: dict[str, list[tuple[str, str, str]]] = {
     "M10 observation accepted without an observer": [
         ("src/blindflange/validate.py", "    if not _text(by):\n", "    if False:\n"),
     ],
+    "M12 declared flow ignored in the proven pass": [
+        ("queries/exposures.cypher", "AND (e.flow_from IS NULL OR e.flow_from = a.tag OR $possible) )",
+         "AND (true OR $possible) )"),
+    ],
     "M11 live store assessed at its as_of, not now": [
         ("src/blindflange/store.py",
          '    return now() if store_info.get("mode") == "live" else store_info["as_of"]',

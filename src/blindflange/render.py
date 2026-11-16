@@ -47,6 +47,8 @@ def result_text(r: checks.Result) -> str:
             out.append(f"     Evidence: {e}")
         if f.uncertain:
             out.append(f"     Unconfirmed: {', '.join(f.uncertain)}")
+        if f.against_flow:
+            out.append(f"     Against declared flow: {', '.join(f.against_flow)}")
 
     if not r.findings:
         if r.assessment_status == checks.COMPLETE:

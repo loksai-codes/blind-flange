@@ -27,7 +27,9 @@
 //   or planned
 //   anything else       passes
 //
-// (:Component)-[:CONNECTED_TO]-(:Component)   physical connection, walked in both directions
+// (:Component)-[:CONNECTED_TO {flow_from}]-(:Component)
+//                physical connection, walked in both directions; flow_from, when set,
+//                is the tag pressure flows from (a one-way connection, e.g. a check valve)
 //
 // (:Permit)
 //   id, title, kind, status (requested | active | closed), description, approved_at, closed_at

@@ -1,0 +1,5 @@
+id: PTW-0854
+title: Replace the pressure gauge on pump A discharge
+kind: maintenance
+description: Break the gauge tapping on L-PD-A. Pump A is shut down and its discharge valve is open for flushing.
+works_on: [L-PD-A]

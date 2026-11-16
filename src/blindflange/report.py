@@ -86,7 +86,7 @@ def _layout(tags: list[str], edges: list[tuple[str, str]], width: float, height:
 
 def _plant_svg(snap: dict, result: dict) -> str:
     comps = {c["tag"]: c for c in snap["components"]}
-    edges = [tuple(e) for e in snap["connections"]]
+    edges = [tuple(e[:2]) for e in snap["connections"]]
     tags = sorted(comps)
     w = 1060
     h = max(420, min(1600, int(9 * len(tags) + 300)))
@@ -189,7 +189,7 @@ def evaluation_html(e: dict) -> str:
             c["was"], c["state"] = c.get("state") or "unknown", ch["to"]
     snap = dict(snap, components=list(comps.values()))
     adj: dict[str, list[str]] = {t: [] for t in comps}
-    for a, b in snap["connections"]:
+    for a, b, *_ in snap["connections"]:
         adj[a].append(b)
         adj[b].append(a)
     verdict = result.get("conflict_verdict") or result.get("assessment_status")

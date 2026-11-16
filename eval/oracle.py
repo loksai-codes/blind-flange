@@ -50,6 +50,7 @@ def _sources(comps: dict, energised: set, possible: bool, stale_before: str) -> 
 
 def exposures(comps: dict, adj: dict, permits: list[dict], candidate: str, energised: set,
               possible: bool, stale_before: str, max_hops: int) -> dict:
+    # adj[a] holds (b, against): against is True when a -> b runs against declared flow.
     """{(permit, target, relation, source): hops} for every target pressure reaches."""
     targets: dict[str, list[tuple[str, str]]] = {}
     for p in permits:
@@ -68,7 +69,9 @@ def exposures(comps: dict, adj: dict, permits: list[dict], candidate: str, energ
             a = queue.popleft()
             if dist[a] >= max_hops or not _passes(comps[a], possible, stale_before):
                 continue
-            for b in adj[a]:
+            for b, against in adj[a]:
+                if against and not possible:
+                    continue
                 if b not in dist:
                     dist[b] = dist[a] + 1
                     queue.append(b)
@@ -85,9 +88,11 @@ def hazards(evaluation: dict, default_max_hops: int = 100) -> dict:
     snap, req = evaluation["snapshot"], dict(evaluation["request"])
     comps = {c["tag"]: dict(c) for c in snap["components"]}
     adj = {t: [] for t in comps}
-    for a, b in snap["connections"]:
-        adj[a].append(b)
-        adj[b].append(a)
+    for conn in snap["connections"]:
+        a, b = conn[:2]
+        one_way = conn[2:] == ["forward"]                 # flow from a to b only
+        adj[a].append((b, False))
+        adj[b].append((a, one_way))
     at = req.get("at") or snap["store"]["as_of"]
     stale_before = _stale_before(at, snap["store"]["max_age_hours"])
     max_hops = req.get("max_hops") or default_max_hops
@@ -114,6 +119,8 @@ def hazards(evaluation: dict, default_max_hops: int = 100) -> dict:
         observe(t, "in_service")
     after = exposures(comps, adj, permits + [cand], cand["id"], set(cand.get("energises", [])),
                       True, stale_before, max_hops)
+    after_proven = exposures(comps, adj, permits + [cand], cand["id"], set(cand.get("energises", [])),
+                             False, stale_before, max_hops)
 
     def label(key):
         permit, target, relation, source = key
@@ -124,6 +131,7 @@ def hazards(evaluation: dict, default_max_hops: int = 100) -> dict:
         "introduced": sorted(label(k) for k in after if k not in before),
         "remaining": sorted(label(k) for k in after if k in before),
         "resolved": sorted(label(k) for k in before if k not in after),
+        "proven": sorted(label(k) for k in after_proven),
     }
 
 

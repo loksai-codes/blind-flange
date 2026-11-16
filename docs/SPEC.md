@@ -50,6 +50,13 @@ and `src/blindflange/model.py`. Change them together.
 | `unknown` (or no state) | Never a barrier. The walk may pass it, but only in the POSSIBLE pass. |
 | any state observed before `as_of - max_age_hours` | Stale: treated like `unknown`. |
 | a `planned_state` (written by approval) | Planned: treated like `unknown` until someone observes the component. |
+
+A connection may declare one-way flow: `[A, B, forward]` in the plant file
+means pressure flows from A to B. Every connection through a check valve must
+declare it. A hop against declared flow is allowed only in the POSSIBLE pass,
+so a route that needs one is reported as POSSIBLE, labelled "against declared
+flow" with the hops listed. A hazard proven from one source is not made
+uncertain by another source that only reaches it against flow.
 | anything else | Passes. |
 
 A blind is `installed` or `not_installed`. `removed` is rejected for a blind,
@@ -154,9 +161,10 @@ loops, unknown, stale and removed states) check that it computes the same
 hazard sets as the graph.
 
 ## Known simplifications
-- Pressure is modelled as reachability. There is no flow direction, pressure
-  level, fluid, or check-valve behaviour. A check valve is treated as open, and a
-  pump or compressor that is shut down passes pressure.
+- Pressure is modelled as reachability. There is no pressure level or fluid.
+  Flow direction exists only where it is declared (every check valve); elsewhere
+  a connection carries pressure both ways, and a pump or compressor that is shut
+  down passes pressure in both directions.
 - A relief valve in place is treated as closed.
 - Only the final state is checked. Multi-step procedures are not modelled.
 - Double block and bleed, vents and drains are not modelled as a pattern.

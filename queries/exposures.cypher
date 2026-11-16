@@ -6,6 +6,9 @@
 //   removed            open end: the walk reaches it and stops (and it is a target)
 //   unknown, stale     never a barrier; passable only when $possible is true
 //   or planned         (planned = an approved permit says it will change; nobody has seen it)
+// A one-way connection (flow_from set, e.g. through a check valve) is passable
+// against its declared flow only when $possible is true, so such a route is
+// POSSIBLE, never PROVEN; against_flow lists the hops that go against it.
 // So the query runs twice. With $possible = false every component the walk
 // passes has a known, current state, and a finding is PROVEN. With
 // $possible = true the walk may pass components nobody has confirmed, and a
@@ -27,9 +30,10 @@ WHERE ( (s.pressure_source = true OR EXISTS { (:Permit {id: $candidate})-[:ENERG
         AND (coalesce(s.state, 'unknown') = 'unknown' OR coalesce(s.observed_at, '') < $stale_before
              OR s.planned_state IS NOT NULL) )
 MATCH path = SHORTEST 1 (s)
-  ((a)-[:CONNECTED_TO]-(b)
+  ((a)-[e:CONNECTED_TO]-(b)
     WHERE ( NOT coalesce(a.state, 'unknown') IN ['closed', 'installed', 'removed', 'unknown']
-            AND coalesce(a.observed_at, '') >= $stale_before AND a.planned_state IS NULL )
+            AND coalesce(a.observed_at, '') >= $stale_before AND a.planned_state IS NULL
+            AND (e.flow_from IS NULL OR e.flow_from = a.tag OR $possible) )
        OR ( $possible AND (coalesce(a.state, 'unknown') = 'unknown'
                            OR coalesce(a.observed_at, '') < $stale_before
                            OR a.planned_state IS NOT NULL) )
@@ -46,5 +50,9 @@ RETURN coalesce(q.id, '') AS permit, q.title AS title,
        [n IN [s] + nodes(path)[1..-1]
           WHERE coalesce(n.state, 'unknown') = 'unknown' OR coalesce(n.observed_at, '') < $stale_before
              OR n.planned_state IS NOT NULL
-          | n.tag] AS uncertain
+          | n.tag] AS uncertain,
+       [i IN range(0, length(path) - 1)
+          WHERE relationships(path)[i].flow_from IS NOT NULL
+            AND relationships(path)[i].flow_from <> nodes(path)[i].tag
+          | nodes(path)[i].tag + '->' + nodes(path)[i + 1].tag] AS against_flow
 ORDER BY hops, source, target, permit

@@ -20,7 +20,7 @@ def test_every_cross_service_connection_is_a_declared_tie_in(name):
     plant = store.load_plant(PLANTS[name])
     service = {c["tag"]: c["service"] for c in plant["components"]}
     ties = {tuple(t) for t in plant.get("tie_ins", [])}
-    for a, b in plant["connections"]:
+    for a, b, *_ in plant["connections"]:
         sa, sb = service[a], service[b]
         assert sa == sb or (sa, sb) in ties or (sb, sa) in ties, (a, sa, b, sb)
 
@@ -29,7 +29,7 @@ def test_instrument_air_is_not_connected_to_any_other_service():
     plant = store.load_plant(PLANTS["gas_plant"])
     service = {c["tag"]: c["service"] for c in plant["components"]}
     assert "instrument_air" in service.values()
-    for a, b in plant["connections"]:
+    for a, b, *_ in plant["connections"]:
         if "instrument_air" in (service[a], service[b]):
             assert service[a] == service[b], (a, b)
 
