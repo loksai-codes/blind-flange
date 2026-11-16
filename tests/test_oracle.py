@@ -33,6 +33,10 @@ def random_plant(rng: random.Random):
             c["observed_at"] = STALE
         if rng.random() < 0.05:
             c.pop("state")
+        elif rng.random() < 0.1:                                # an approved permit's planned change
+            c["planned_state"] = c["state"]
+            c["state"] = {"valve": "open", "blind": "not_installed"}.get(kind, c["state"])
+            c["planned_by"] = "PTW-0"
         comps.append(c)
     tags = [c["tag"] for c in comps]
     edges = set()

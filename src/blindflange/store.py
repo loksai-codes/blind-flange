@@ -284,6 +284,8 @@ def _component_rows(components: list[dict], as_of: str) -> list[dict]:
             "pressure_source": bool(c.get("pressure_source", False)), "integrity": c.get("integrity"),
             "observed_at": timestamp(c["observed_at"]) if c.get("observed_at") else (as_of if has_state else None),
             "observed_by": c.get("observed_by") or ("scenario" if has_state else None),
+            "planned_state": c.get("planned_state"), "planned_by": c.get("planned_by"),
+            "planned_at": c.get("planned_at"),
         }
         out.append({"label": label_for(c["kind"]), "props": {k: v for k, v in props.items() if v is not None}})
     return out
@@ -419,9 +421,14 @@ def apply(conn, pid: str, at: str) -> None:
 
 
 def activate(conn, pid: str, at: str) -> None:
-    """Approve a requested permit: mark it active and apply its state changes."""
+    """Approve a requested permit: mark it active and record its state changes as planned.
+
+    Approval never writes an observation. The plant's observed states stay as they
+    were until someone records what they see with `set_state`.
+    """
     run(conn, "permit_activate", id=pid, at=at)
-    apply(conn, pid, at)
+    for stmt in statements(query("plan")):
+        conn.execute(stmt, {"id": pid, "at": at})
 
 
 def close_permit(conn, pid: str, at: str) -> list[dict]:

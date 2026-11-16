@@ -4,7 +4,8 @@
 // component only if it lets pressure through:
 //   closed, installed  barrier: the walk reaches it and stops
 //   removed            open end: the walk reaches it and stops (and it is a target)
-//   unknown or stale   never a barrier; passable only when $possible is true
+//   unknown, stale     never a barrier; passable only when $possible is true
+//   or planned         (planned = an approved permit says it will change; nobody has seen it)
 // So the query runs twice. With $possible = false every component the walk
 // passes has a known, current state, and a finding is PROVEN. With
 // $possible = true the walk may pass components nobody has confirmed, and a
@@ -21,15 +22,17 @@
 MATCH (s:Component)
 WHERE ( (s.pressure_source = true OR EXISTS { (:Permit {id: $candidate})-[:ENERGISES]->(s) })
         AND s.state = 'in_service'
-        AND ($possible OR coalesce(s.observed_at, '') >= $stale_before) )
+        AND ($possible OR (coalesce(s.observed_at, '') >= $stale_before AND s.planned_state IS NULL)) )
    OR ( $possible AND s.pressure_source = true AND coalesce(s.state, 'unknown') <> 'removed'
-        AND (coalesce(s.state, 'unknown') = 'unknown' OR coalesce(s.observed_at, '') < $stale_before) )
+        AND (coalesce(s.state, 'unknown') = 'unknown' OR coalesce(s.observed_at, '') < $stale_before
+             OR s.planned_state IS NOT NULL) )
 MATCH path = SHORTEST 1 (s)
   ((a)-[:CONNECTED_TO]-(b)
     WHERE ( NOT coalesce(a.state, 'unknown') IN ['closed', 'installed', 'removed', 'unknown']
-            AND coalesce(a.observed_at, '') >= $stale_before )
+            AND coalesce(a.observed_at, '') >= $stale_before AND a.planned_state IS NULL )
        OR ( $possible AND (coalesce(a.state, 'unknown') = 'unknown'
-                           OR coalesce(a.observed_at, '') < $stale_before) )
+                           OR coalesce(a.observed_at, '') < $stale_before
+                           OR a.planned_state IS NOT NULL) )
   ){0,__MAX_HOPS__} (x:Component)
 OPTIONAL MATCH (q:Permit)-[r:WORKS_ON|RELIES_ON]->(x)
 WHERE (q.status = 'active' OR q.id = $candidate)
@@ -42,5 +45,6 @@ RETURN coalesce(q.id, '') AS permit, q.title AS title,
        [n IN nodes(path) | n.tag] AS path, length(path) AS hops,
        [n IN [s] + nodes(path)[1..-1]
           WHERE coalesce(n.state, 'unknown') = 'unknown' OR coalesce(n.observed_at, '') < $stale_before
+             OR n.planned_state IS NOT NULL
           | n.tag] AS uncertain
 ORDER BY hops, source, target, permit

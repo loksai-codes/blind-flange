@@ -9,11 +9,11 @@ MATCH (s:Component)
 WHERE ( (s.pressure_source = true OR EXISTS { (:Permit {id: $candidate})-[:ENERGISES]->(s) })
         AND coalesce(s.state, 'unknown') IN ['in_service', 'unknown'] )
    OR ( s.pressure_source = true AND coalesce(s.state, 'unknown') <> 'removed'
-        AND coalesce(s.observed_at, '') < $stale_before )
+        AND (coalesce(s.observed_at, '') < $stale_before OR s.planned_state IS NOT NULL) )
 MATCH path = SHORTEST 1 (s)
   ((a)-[:CONNECTED_TO]-(b)
     WHERE NOT coalesce(a.state, 'unknown') IN ['closed', 'installed', 'removed']
-       OR coalesce(a.observed_at, '') < $stale_before
+       OR coalesce(a.observed_at, '') < $stale_before OR a.planned_state IS NOT NULL
   ){1,__PROBE_HOPS__} (x:Component)
 WITH x, min(length(path)) AS hops
 WHERE hops > __MAX_HOPS__

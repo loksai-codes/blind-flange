@@ -15,12 +15,15 @@
 //   pressure_source  true if the item holds or generates pressure when in_service
 //   integrity        Blind only: rated | temporary (not pressure-tested)
 //   observed_at      when the state was last confirmed (ISO-8601 UTC text)
-//   observed_by      who or what confirmed it: an operator, "scenario", or a permit id
+//   observed_by      who or what confirmed it: an operator, or "scenario"
+//   planned_state    the state an approved permit will put it in; not yet observed
+//   planned_by       that permit's id;  planned_at  when it was approved
 //
 // Passability (the one rule; also in queries/exposures.cypher, bound.cypher, reach.cypher):
 //   closed, installed   barrier: pressure reaches it and stops
 //   removed             open end: pressure reaches it, escapes, and does not continue
-//   unknown, or stale   never a barrier; pressure may pass (a POSSIBLE finding, not PROVEN)
+//   unknown, stale,     never a barrier; pressure may pass (a POSSIBLE finding, not PROVEN)
+//   or planned
 //   anything else       passes
 //
 // (:Component)-[:CONNECTED_TO]-(:Component)   physical connection, walked in both directions

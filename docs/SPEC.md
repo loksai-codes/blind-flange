@@ -49,6 +49,7 @@ and `src/blindflange/model.py`. Change them together.
 | `removed` | Open end. Pressure reaches it, escapes, and does not continue. Reaching it is a finding. |
 | `unknown` (or no state) | Never a barrier. The walk may pass it, but only in the POSSIBLE pass. |
 | any state observed before `as_of - max_age_hours` | Stale: treated like `unknown`. |
+| a `planned_state` (written by approval) | Planned: treated like `unknown` until someone observes the component. |
 | anything else | Passes. |
 
 A blind is `installed` or `not_installed`. `removed` is rejected for a blind,
@@ -102,8 +103,17 @@ the graph edges that prove them.
 8. Decide the two result fields, then append an `Evaluation` with a snapshot.
 
 `approve` and `set` run the same assessment, then, if the verdict is CLEAR or
-HOLD, repeat the writes in a committed transaction that also checks and bumps
-the store revision.
+HOLD, write in a committed transaction that also checks and bumps the store
+revision.
+
+- `approve` stores the permit as active and records its state changes as
+  **planned** (`planned_state`, `planned_by`, `planned_at`). It does not touch
+  the observed `state`, `observed_at` or `observed_by`. A planned state is
+  unconfirmed: it is never a barrier in the PROVEN pass, so a route through it
+  gives a POSSIBLE finding and an INCOMPLETE result, never CLEAR.
+- `set TAG=STATE --by <observer>` records an observation. It makes the state
+  verified and clears any plan on that component.
+- A what-if (`whatif --set`) may assume a planned state hypothetically.
 
 ### Search bound
 Every walk is bounded (default 100 hops, at most 499 because Relate refuses

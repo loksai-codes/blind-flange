@@ -65,7 +65,7 @@ Inputs: plant topology | valve observations (state, time, observer) | permits
 | `Store` | One per file: revision, as_of, max_age_hours, eval_seq |
 | `Evaluation` | Request, result, inputs snapshot (JSON), store revision, timestamp, kind |
 
-Permit status (authorization) is kept separate from component observed state. Approving a permit does apply its planned state changes to the plant, stamped with the permit id as observer; see open question 7.
+Permit status (authorization) is kept separate from component observed state. Approving a permit records its state changes as `planned_state` / `planned_by` / `planned_at` and leaves the observed state alone; only an observation (`set --by`) verifies a state. See open question 7.
 
 ## 6. Functional requirements
 
@@ -211,7 +211,7 @@ Electrical isolation, fluid properties, pressure levels, flow simulation, multi-
 | DEF-11 | Validation holes | Fixed; test |
 | DEF-12 | Documentation drift | Fixed. The reserved id `__change__` carries a state change through the evaluator and is rejected as a permit id |
 | DEF-13 | Cypher inline in Python | Fixed: `queries/store.cypher` |
-| DEF-14 | Approval writes plant state | Kept by design (open question 7, decided): approval applies the permit's planned changes, stamped with the permit id as observer |
+| DEF-14 | Approval writes plant state | Fixed: approval writes `planned_state`, never an observation; `test_approval_records_planned_states_and_leaves_observations_alone` fails if it does |
 
 ## 13. Open questions
 
@@ -221,7 +221,7 @@ Electrical isolation, fluid properties, pressure levels, flow simulation, multi-
 4. `ENERGISES` and `OPERATES` edges persist for active permits, so `ISOLATION_REMOVED` and `ENERGISES_WORKSITE` can be found against them.
 5. ~~Is `in_service` a valid `OPERATES {to}` for a pump?~~ Yes, and it makes the pump a live source.
 6. `CLAUDE.md`, `SUBMISSION.md` and `docs/PLAN.md` are gitignored. Decide which should be public before submitting.
-7. ~~Should `approve` apply the permit's planned state changes?~~ Decided: yes. The approved permit's changes are written with the permit id as `observed_by`, so the store says they are planned, not seen. That keeps "what was checked is exactly what is stored". An operator who confirms a state with `set` replaces the stamp. A practitioner should still confirm this suits real practice.
+7. ~~Should `approve` apply the permit's planned state changes?~~ Decided (revised after the skeptical review): approval records them as planned, in separate fields, and never as observations. A planned state is unconfirmed, so it can give INCOMPLETE but never CLEAR. An operator's observation with `set --by` makes it verified. Tests: `tests/test_planned.py`.
 
 ## 14. Changes from the previous version
 

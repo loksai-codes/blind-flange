@@ -23,8 +23,11 @@ RETURN 'SHARED_ISOLATION' AS code, q.id AS permit, q.title AS title, v.tag AS ta
 UNION
 MATCH (p:Permit {id: $id})-[:RELIES_ON]->(v:Component)
 WHERE NOT coalesce(v.state, 'unknown') IN ['closed', 'installed']
-   OR coalesce(v.observed_at, '') < $stale_before
+   OR coalesce(v.observed_at, '') < $stale_before OR v.planned_state IS NOT NULL
 RETURN 'ISOLATION_NOT_IN_PLACE' AS code, '' AS permit, null AS title, v.tag AS target,
-       (coalesce(v.state, 'unknown') = 'unknown' OR coalesce(v.observed_at, '') < $stale_before) AS uncertain,
+       (coalesce(v.state, 'unknown') = 'unknown' OR coalesce(v.observed_at, '') < $stale_before
+        OR v.planned_state IS NOT NULL) AS uncertain,
        [p.id + ' RELIES_ON ' + v.tag,
-        v.tag + ' is ' + coalesce(v.state, 'unknown') + ', observed ' + coalesce(v.observed_at, 'never')] AS evidence
+        v.tag + ' is ' + coalesce(v.state, 'unknown') + ', observed ' + coalesce(v.observed_at, 'never')
+        + CASE WHEN v.planned_state IS NULL THEN ''
+               ELSE '; planned ' + v.planned_state + ' by ' + v.planned_by + ', not yet observed' END] AS evidence

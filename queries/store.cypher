@@ -35,14 +35,17 @@ CREATE (a)-[:CONNECTED_TO]->(b)
 // :component
 MATCH (c:Component {tag: $tag})
 RETURN c.tag AS tag, c.kind AS kind, c.name AS name, coalesce(c.state, 'unknown') AS state,
-       c.observed_at AS observed_at, c.observed_by AS observed_by
+       c.observed_at AS observed_at, c.observed_by AS observed_by,
+       c.planned_state AS planned_state, c.planned_by AS planned_by
 
 // :component_kinds
 MATCH (c:Component) WHERE c.tag IN $tags RETURN c.tag AS tag, c.kind AS kind
 
 // :set_state
+// An observation. It makes the state verified and replaces any plan.
 MATCH (c:Component {tag: $tag})
-SET c.state = $state, c.observed_at = $at, c.observed_by = $by
+SET c.state = $state, c.observed_at = $at, c.observed_by = $by,
+    c.planned_state = null, c.planned_by = null, c.planned_at = null
 
 // :permit_exists
 MATCH (p:Permit {id: $id}) RETURN p.status AS status
@@ -90,9 +93,12 @@ ORDER BY tag
 // :uncertain
 MATCH (c:Component)
 WHERE coalesce(c.state, 'unknown') = 'unknown' OR coalesce(c.observed_at, '') < $stale_before
+   OR c.planned_state IS NOT NULL
 RETURN c.tag AS tag, coalesce(c.state, 'unknown') AS state, c.observed_at AS observed_at,
        c.observed_by AS observed_by,
-       CASE WHEN coalesce(c.state, 'unknown') = 'unknown' THEN 'unknown' ELSE 'stale' END AS reason
+       CASE WHEN coalesce(c.state, 'unknown') = 'unknown' THEN 'unknown'
+            WHEN c.planned_state IS NOT NULL THEN 'planned ' + c.planned_state + ' by ' + c.planned_by
+            ELSE 'stale' END AS reason
 ORDER BY tag
 
 // :find
@@ -103,7 +109,8 @@ RETURN node.tag AS tag, node.name AS name, score ORDER BY score DESC LIMIT 5
 MATCH (c:Component)
 RETURN c.tag AS tag, c.kind AS kind, c.name AS name, c.state AS state, c.normal AS normal,
        c.pressure_source AS pressure_source, c.integrity AS integrity,
-       c.observed_at AS observed_at, c.observed_by AS observed_by
+       c.observed_at AS observed_at, c.observed_by AS observed_by,
+       c.planned_state AS planned_state, c.planned_by AS planned_by, c.planned_at AS planned_at
 ORDER BY tag
 
 // :snapshot_connections

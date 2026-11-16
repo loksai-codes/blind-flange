@@ -24,12 +24,14 @@ def _stale_before(at: str, hours: float) -> str:
 
 
 def _uncertain(c: dict, stale_before: str) -> bool:
-    return (c.get("state") or "unknown") == "unknown" or (c.get("observed_at") or "") < stale_before
+    return ((c.get("state") or "unknown") == "unknown" or (c.get("observed_at") or "") < stale_before
+            or bool(c.get("planned_state")))
 
 
 def _passes(c: dict, possible: bool, stale_before: str) -> bool:
     state = c.get("state") or "unknown"
-    if state not in BARRIER and state != OPEN_END and state != "unknown" and (c.get("observed_at") or "") >= stale_before:
+    if (state not in BARRIER and state != OPEN_END and state != "unknown"
+            and (c.get("observed_at") or "") >= stale_before and not c.get("planned_state")):
         return True
     return possible and _uncertain(c, stale_before)
 
@@ -39,7 +41,7 @@ def _sources(comps: dict, energised: set, possible: bool, stale_before: str) -> 
     for tag, c in comps.items():
         state = c.get("state") or "unknown"
         live = (c.get("pressure_source") or tag in energised) and state == "in_service" and (
-            possible or (c.get("observed_at") or "") >= stale_before)
+            possible or ((c.get("observed_at") or "") >= stale_before and not c.get("planned_state")))
         maybe = possible and c.get("pressure_source") and state != OPEN_END and _uncertain(c, stale_before)
         if live or maybe:
             out.append(tag)
@@ -93,8 +95,13 @@ def hazards(evaluation: dict, default_max_hops: int = 100) -> dict:
 
     before = exposures(comps, adj, permits, "", set(), True, stale_before, max_hops)
 
+    def observe(tag, state):
+        comps[tag].update(state=state, observed_at=at)
+        for k in ("planned_state", "planned_by", "planned_at"):
+            comps[tag].pop(k, None)
+
     for h in req.get("hypothetical", []):
-        comps[h["tag"]].update(state=h["to"], observed_at=at)
+        observe(h["tag"], h["to"])
     if req["type"] == "permit":
         cand = dict(req["permit"], status="requested")
     elif req["type"] == "change":
@@ -102,9 +109,9 @@ def hazards(evaluation: dict, default_max_hops: int = 100) -> dict:
     else:
         cand = {"id": CHANGE_ID, "status": "requested"}
     for op in cand.get("operates", []):
-        comps[op["tag"]].update(state=op["to"], observed_at=at)
+        observe(op["tag"], op["to"])
     for t in cand.get("energises", []):
-        comps[t].update(state="in_service", observed_at=at)
+        observe(t, "in_service")
     after = exposures(comps, adj, permits + [cand], cand["id"], set(cand.get("energises", [])),
                       True, stale_before, max_hops)
 

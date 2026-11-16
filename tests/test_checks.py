@@ -36,13 +36,13 @@ def test_blocked_permit_is_not_stored_on_approve(conn):
     assert store.info(conn)["revision"] == 1
 
 
-def test_approve_stores_permit_applies_state_changes_and_bumps_revision(conn):
+def test_approve_stores_permit_plans_its_state_changes_and_bumps_revision(conn):
     set_now(conn, "RLV-504", "closed")
     r, written = checks.approve(conn, permit("PTW-0511"))
     assert written and r.conflict_verdict == checks.CLEAR
     assert store.run(conn, "permit_exists", id="PTW-0511") == [{"status": "active"}]
-    assert store.component(conn, "SV-A")["state"] == "open"
-    assert store.component(conn, "P-A")["state"] == "in_service"
+    assert store.component(conn, "SV-A")["planned_state"] == "open"
+    assert store.component(conn, "P-A")["planned_state"] == "in_service"
     assert store.info(conn)["revision"] == 3
 
 
