@@ -4,6 +4,8 @@ Before a work permit is approved, Blind Flange walks the plant's piping graph in
 
 Decision support only. This is not a safety system and has not been reviewed by a process safety engineer.
 
+Practitioner review: pending. [`docs/REVIEW_PACK.md`](docs/REVIEW_PACK.md) is what we have asked a process or operations engineer to look at.
+
 Project page: [`docs/index.html`](docs/index.html) · Sample evidence report: [`docs/report-PTW-2201.html`](docs/report-PTW-2201.html) · Agent session: [`docs/agent-session.md`](docs/agent-session.md)
 
 ```
