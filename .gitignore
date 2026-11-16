@@ -5,6 +5,8 @@ __pycache__/
 *.rl.lock
 *.wal
 *.building
+work.rl
+*.work.rl
 .DS_Store
 # private working files
 CLAUDE.md

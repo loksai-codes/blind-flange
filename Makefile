@@ -18,6 +18,8 @@ test:
 eval:
 	$(PY) eval/compare.py
 
+# The demo works on gitignored copies, so the committed stores never change.
 demo:
-	$(PY) -m blindflange check data/permits/PTW-0511.yaml --store stores/condensate_unit.rl || true
-	$(PY) -m blindflange check data/permits/PTW-2201.yaml --store stores/gas_plant.rl || true
+	$(PY) -c "import shutil; shutil.copy('stores/condensate_unit.rl', 'work.rl'); shutil.copy('stores/gas_plant.rl', 'gas.work.rl')"
+	$(PY) -m blindflange check data/permits/PTW-0511.yaml --store work.rl || true
+	$(PY) -m blindflange check data/permits/PTW-2201.yaml --store gas.work.rl || true

@@ -7,7 +7,7 @@ Decision support only. This is not a safety system and has not been reviewed by 
 Project page: [`docs/index.html`](docs/index.html) · Sample evidence report: [`docs/report-PTW-2201.html`](docs/report-PTW-2201.html) · Agent session: [`docs/agent-session.md`](docs/agent-session.md)
 
 ```
-$ blindflange check data/permits/PTW-0511.yaml --store stores/condensate_unit.rl
+$ python -m blindflange check data/permits/PTW-0511.yaml --store work.rl
 
 BLOCK      PTW-0511  Reinstate and start condensate pump A
   assessment_status: COMPLETE    conflict_verdict: BLOCK    revision 1    EVAL-1
@@ -20,6 +20,8 @@ BLOCK      PTW-0511  Reinstate and start condensate pump A
 
   Tag matching alone: no shared tags with any active permit, so it would pass.
 ```
+
+`work.rl` is a copy of the committed `stores/condensate_unit.rl` (see [Setup and run](#setup-and-run)), so the committed store never changes.
 
 ## Use case
 
@@ -35,14 +37,14 @@ BLOCK      PTW-0511  Reinstate and start condensate pump A
 The two permits in the example share no equipment tag, so matching permits by tag finds nothing. The conflict is a path through the piping. Close one valve on that path and the same request is clear. Mark that valve's state as unknown and the tool says it cannot decide:
 
 ```
-$ blindflange set RLV-504=closed --store stores/condensate_unit.rl
+$ python -m blindflange set RLV-504=closed --by "operator round" --store work.rl
 RLV-504: open -> closed
-$ blindflange check data/permits/PTW-0511.yaml --store stores/condensate_unit.rl
+$ python -m blindflange check data/permits/PTW-0511.yaml --store work.rl
 CLEAR      PTW-0511  Reinstate and start condensate pump A
   assessment_status: COMPLETE    conflict_verdict: CLEAR    revision 2    EVAL-3
 
-$ blindflange set RLV-504=unknown --force --store stores/condensate_unit.rl
-$ blindflange check data/permits/PTW-0511.yaml --store stores/condensate_unit.rl
+$ python -m blindflange set RLV-504=unknown --force --by "operator round" --store work.rl
+$ python -m blindflange check data/permits/PTW-0511.yaml --store work.rl
 INCOMPLETE PTW-0511  Reinstate and start condensate pump A
   assessment_status: INCOMPLETE    conflict_verdict: none    revision 3    EVAL-5
 
@@ -55,7 +57,7 @@ INCOMPLETE PTW-0511  Reinstate and start condensate pump A
 On the larger illustrative gas plant (151 components), the same pattern hides behind a bypass. Train C's relief valve is out and a temporary blind is fitted. The isolation valve its permit lists is closed, but a small pressurisation bypass around it was left open. Restarting compression on train B reaches the blind in 12 hops, and no tag is shared:
 
 ```
-$ blindflange check data/permits/PTW-2201.yaml --store stores/gas_plant.rl
+$ python -m blindflange check data/permits/PTW-2201.yaml --store gas.work.rl
 BLOCK      PTW-2201  Restart compression on train B
   1. [BLOCK] PRESSURE_REACHES_TEMPORARY_BARRIER
      Pressure would reach BF-230, a temporary barrier that PTW-1230 relies on. It has not been pressure-tested.
@@ -98,7 +100,7 @@ The same statement runs twice. With `$possible = false` the walk only passes com
 
 **Transactions as dry runs.** A request is assessed by writing it into the graph inside a transaction, applying its state changes, querying, and rolling back. Approval is the same steps with a commit, so what was checked is exactly what is stored. The walk runs before and after the change, so hazards the request introduces are separated from hazards that already exist. An existing hazard gives HOLD, never CLEAR.
 
-**Every decision is kept in the same file.** Each assessment appends an `Evaluation` node with the request, the result and a snapshot of every input. `blindflange replay EVAL-1` rebuilds that snapshot in memory and re-runs the check. Writes check the `Store` revision, so an approval prepared against an older picture of the plant is refused.
+**Every decision is kept in the same file.** Each assessment appends an `Evaluation` node with the request, the result and a snapshot of every input. `python -m blindflange replay EVAL-1` rebuilds that snapshot in memory and re-runs the check. Writes check the `Store` revision, so an approval prepared against an older picture of the plant is refused.
 
 **Also used:** uniqueness constraints, a full-text index for finding equipment tags from free text, `EXISTS { }` subqueries and `UNION`.
 
@@ -106,43 +108,56 @@ The same statement runs twice. With `$possible = false` the walk only passes com
 
 Prerequisites: Python 3.10 or later, and git.
 
+Quick start:
+
 ```
 git clone https://github.com/loksai-codes/blind-flange.git && cd blind-flange
+python -m venv .venv
+source .venv/bin/activate                # Windows: .venv\Scripts\activate
 pip install -e .
-blindflange check data/permits/PTW-0511.yaml --store stores/condensate_unit.rl
+cp stores/condensate_unit.rl work.rl     # Windows: copy stores\condensate_unit.rl work.rl
+python -m blindflange check data/permits/PTW-0511.yaml --store work.rl
 ```
 
-The third command prints the BLOCK result shown at the top of this page. It also appends an Evaluation record to the store; `git checkout stores/` puts the committed file back.
+The last command prints the BLOCK result shown at the top of this page. Every assessment appends an Evaluation record to the store it is given, so the examples work on `work.rl`, a gitignored copy, and the committed stores stay exactly as they are. For the gas plant, copy `stores/gas_plant.rl` to `gas.work.rl` the same way.
 
-If your system blocks the `blindflange` launcher (Windows Application Control can refuse unsigned `.exe` files), use `python -m blindflange` in its place. Every command works either way.
+`pip install` also creates a `blindflange` launcher, which works in place of `python -m blindflange`. Windows Application Control can refuse that unsigned `.exe`; `python -m blindflange` always works.
 
 | Command | What it does |
 | --- | --- |
-| `blindflange check <permit.yaml> --store <file>` | Assess a permit. Records an Evaluation; changes nothing else. |
-| `blindflange whatif --set TAG=STATE [--permit <permit.yaml>] --store <file>` | Assess hypothetical changes, with or without a permit. Records an Evaluation; changes no plant state or permits. |
-| `blindflange approve <permit.yaml> --store <file> [--revision N]` | Assess, then store the permit if CLEAR or HOLD, with its state changes recorded as planned. Records an Evaluation either way. Refused if the store has moved past revision N. |
-| `blindflange set TAG=STATE --store <file>` | Record an observed state (`--by` names the observer). Refused unless CLEAR or HOLD (`--force` overrides). Records an Evaluation either way. |
-| `blindflange close <permit-id> --store <file>` | Close a permit and list the isolations other permits still need. |
-| `blindflange reach <tag> [--set TAG=STATE] --store <file>` | Show what a component could pressurise. |
-| `blindflange handover --store <file>` | Active permits, abnormal and unconfirmed states, standing hazards. |
-| `blindflange evaluations / show / replay <EVAL-n> --store <file>` | List, show and re-run recorded decisions. |
-| `blindflange report <EVAL-n> --store <file>` | Write an HTML evidence page: the path, barriers beside it, and the plant. |
-| `blindflange mcp --store <file>` | Serve agent tools over MCP (stdio). `assess_change` and `what_if` record an Evaluation; no tool changes plant state or permits. See below. |
-| `blindflange find "<text>" --store <file>` | Find equipment tags from free text. |
-| `blindflange validate <file.yaml>` | List every problem in a plant, scenario or permit file. |
-| `blindflange build <scenario.yaml> -o <file>` | Rebuild a store from YAML. |
+| `python -m blindflange check <permit.yaml> --store <file>` | Assess a permit. Records an Evaluation; changes nothing else. |
+| `python -m blindflange whatif --set TAG=STATE [--permit <permit.yaml>] --store <file>` | Assess hypothetical changes, with or without a permit. Records an Evaluation; changes no plant state or permits. |
+| `python -m blindflange approve <permit.yaml> --store <file> [--revision N]` | Assess, then store the permit if CLEAR or HOLD, with its state changes recorded as planned. Records an Evaluation either way. Refused if the store has moved past revision N. |
+| `python -m blindflange set TAG=STATE --by <observer> --store <file>` | Record an observed state (`--by` names the observer). Refused unless CLEAR or HOLD (`--force` overrides). Records an Evaluation either way. |
+| `python -m blindflange close <permit-id> --store <file>` | Close a permit and list the isolations other permits still need. |
+| `python -m blindflange reach <tag> [--set TAG=STATE] --store <file>` | Show what a component could pressurise. |
+| `python -m blindflange handover --store <file>` | Active permits, abnormal and unconfirmed states, standing hazards. Leaves the file unchanged. |
+| `python -m blindflange evaluations / show / replay <EVAL-n> --store <file>` | List, show and re-run recorded decisions. |
+| `python -m blindflange report <EVAL-n> --store <file>` | Write an HTML evidence page: the path, barriers beside it, and the plant. |
+| `python -m blindflange mcp --store <file>` | Serve agent tools over MCP (stdio). `assess_change` and `what_if` record an Evaluation; no tool changes plant state or permits. See below. |
+| `python -m blindflange find "<text>" --store <file>` | Find equipment tags from free text. |
+| `python -m blindflange validate <file.yaml>` | List every problem in a plant, scenario or permit file. |
+| `python -m blindflange build <scenario.yaml> -o <file>` | Rebuild a store from YAML. |
 
 Every assessment returns two fields. `assessment_status` is COMPLETE, INCOMPLETE or ERROR. `conflict_verdict` is BLOCK, HOLD, CLEAR, or none when it cannot say. Exit codes: 0 CLEAR or HOLD, 1 error, 2 BLOCK or refused, 3 incomplete with no verdict.
 
-**For an agent.** `blindflange mcp --store stores/gas_plant.rl` serves six tools over the Model Context Protocol: `assess_change`, `what_if`, `reach`, `handover`, `find_tags` and `get_evaluation`. It uses the standard library only. An agent can read a permit written in plain words, find the tags, and ask. The verdict comes from the same evaluator as the CLI. There is no tool to approve a permit or change plant state. For Claude Code:
+**For an agent.** `python -m blindflange mcp --store gas.work.rl` serves six tools over the Model Context Protocol: `assess_change`, `what_if`, `reach`, `handover`, `find_tags` and `get_evaluation`. It uses the standard library only. An agent can read a permit written in plain words, find the tags, and ask. The verdict comes from the same evaluator as the CLI. There is no tool to approve a permit or change plant state. For Claude Code:
 
 ```
-claude mcp add blindflange -- python -m blindflange mcp --store stores/gas_plant.rl
+claude mcp add blindflange -- python -m blindflange mcp --store gas.work.rl
 ```
 
 [`docs/agent-session.md`](docs/agent-session.md) records Claude Code asked "can train B be restarted?" with and without the tool. Without it, the agent found no direct conflict and hedged. With it, the agent made one `assess_change` call, refused, and quoted the 12-hop path.
 
-For development: `pip install -e ".[dev]"`, then `make test`, `make eval` and `make stores`. On a machine without `make`, run the commands in the `Makefile` directly.
+For development, inside the virtual environment:
+
+| Make target | Plain command (no `make` needed) |
+| --- | --- |
+| `make install` | `pip install -e ".[dev]"` |
+| `make test` | `python -m pytest -q` |
+| `make eval` | `python eval/compare.py` (writes `eval/results.md`) |
+| `make stores` | `python -m blindflange build data/scenarios/condensate_unit.yaml -o stores/condensate_unit.rl`, and the same for `gas_plant` |
+| `make demo` | copy both stores to `work.rl` and `gas.work.rl`, then `python -m blindflange check data/permits/PTW-0511.yaml --store work.rl` and `python -m blindflange check data/permits/PTW-2201.yaml --store gas.work.rl` |
 
 ## Where the data lives
 

@@ -112,8 +112,12 @@ OPTIONAL MATCH (q:Permit)-[r:WORKS_ON|RELIES_ON]-&gt;(x)</code></pre>
 
 <h2>Try it</h2>
 <pre><code>git clone https://github.com/loksai-codes/blind-flange.git &amp;&amp; cd blind-flange
+python -m venv .venv
+source .venv/bin/activate                # Windows: .venv\Scripts\activate
 pip install -e .
-blindflange check data/permits/PTW-0511.yaml --store stores/condensate_unit.rl</code></pre>
+cp stores/condensate_unit.rl work.rl     # Windows: copy stores\condensate_unit.rl work.rl
+python -m blindflange check data/permits/PTW-0511.yaml --store work.rl</code></pre>
+<p class="note">Every assessment appends an Evaluation record, so it runs on a copy and the committed store stays as it is.</p>
 
 <h2>What it is not</h2>
 <p>Pressure is modelled as reachability only: no flow direction, pressure levels or fluids. Only the final state is checked; multi-step procedures are not modelled. Electrical isolation is out of scope. Commercial control-of-work products such as Sphera, Enablon and IntelliPERMIT already manage permits and isolations together. Blind Flange does not replace them. It is a small, open, single-file tool whose every finding can be inspected as a graph path and replayed from its record.</p>
