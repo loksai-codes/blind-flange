@@ -2,10 +2,14 @@
 
 Status basis: 16 Nov 2026. Verified by a fresh `git clone`:
 - Windows 11, Python 3.12, new virtual environment: `pip install -e .` and the
-  README's check command gave BLOCK (exit 2); with `.[dev]`, 197 tests passed and
-  `eval/compare.py` matched 33 of 33 cases.
-- Ubuntu 24.04 under WSL2, Python 3.12.3: the same check gave BLOCK (exit 2), 197
-  tests passed, 33 of 33 cases matched. That machine has no pip (and no sudo to
+  README's check command gave BLOCK (exit 2).
+- Current numbers, measured by `scripts/stats.py` and checked by a test: <!--stat:tests_passed-->240<!--/stat--> tests pass,
+  `eval/compare.py` matches <!--stat:eval_matched-->34<!--/stat--> of <!--stat:eval_cases-->34<!--/stat--> cases, and <!--stat:mutations_caught_text-->10 of 10<!--/stat--> mutations are caught.
+- GitHub Actions (`.github/workflows/ci.yml`) installs with `pip install .`, runs the tests and
+  the eval on ubuntu-latest, macos-latest and windows-latest with Python 3.12, and fails if
+  the committed stores or eval results change. All three passed (run 43852804742, 16 Nov).
+- Ubuntu 24.04 under WSL2, Python 3.12.3: the check gave BLOCK (exit 2), and the tests and
+  eval passed. That machine has no pip (and no sudo to
   install it), so the pinned dependency wheels were downloaded by pip on Windows
   and unpacked, with the package laid out as an install lays it out.
 
@@ -94,7 +98,7 @@ Permit status (authorization) is kept separate from component observed state. Ap
 | FR-21 | HTML or SVG evidence view | Path, barriers and unknown states shown | DONE | `blindflange report`; `test_evaluations_replay_and_report` |
 | FR-22 | Agent tools `assess_change` and `what_if` | Same result as the CLI | DONE | `blindflange mcp`; `tests/test_agent.py` including a stdio session |
 | FR-23 | `reach` and `handover` commands | Run against a store | DONE | `reach --set` for what-if; `test_handover_lists_permits_and_hazards` |
-| FR-24 | Evaluation suite with baselines and reported misses | Tag matching, independent oracle, list of misses | DONE | 33 cases; `eval/oracle.py`; `## Misses` in `eval/results.md`; 120 random plants in `tests/test_oracle.py` |
+| FR-24 | Evaluation suite with baselines and reported misses | Tag matching, independent oracle, list of misses | DONE | <!--stat:eval_cases-->34<!--/stat--> cases; `eval/oracle.py`; `## Misses` in `eval/results.md`; <!--stat:random_plants-->120<!--/stat--> random plants in `tests/test_oracle.py` |
 | FR-25 | Plant: two or more sources, a bypass, a path of six or more hops | Verified by a test | DONE | `tests/test_gas_plant.py` (12-hop route through bypass BV-231) |
 | FR-26 | `build` creates a store from a scenario | Store built and checkable | DONE | `tests/test_cli.py` fixture |
 | FR-27 | `approve` and `close` commands | Approve stores a CLEAR or HOLD permit; close reports isolations still needed | DONE | `test_approve_stores_permit_applies_state_changes_and_bumps_revision`, `test_closing_a_permit_reports_isolations_still_needed` |
@@ -108,7 +112,7 @@ Permit status (authorization) is kept separate from component observed state. Ap
 | NFR-01 | Install and first result from a fresh clone in three commands | DONE | Fresh clone, `pip install -e .`, `python -m blindflange check ...`: BLOCK, exit 2 (Windows). The `blindflange` launcher can be blocked by Windows Application Control; README says so |
 | NFR-02 | Clean errors, no tracebacks | DONE | `cli._run`; `test_bad_input_gives_one_line_errors_and_no_traceback` |
 | NFR-03 | One pinned `relate-db` version | DONE | `relate-db==1.0.1` in `pyproject.toml` |
-| NFR-04 | Runs on macOS and Linux | PARTIAL | Linux verified (Ubuntu 24.04, WSL2; see status basis). macOS not yet run; Relate publishes wheels for it but nobody has tried this repo there |
+| NFR-04 | Runs on macOS and Linux | DONE | GitHub Actions run 43852804742 passed on macos-latest, ubuntu-latest and windows-latest (Python 3.12, `pip install .`, tests and eval); Ubuntu 24.04 under WSL2 checked by hand |
 | NFR-05 | Inspectable committed `.rl` stores | DONE | `stores/condensate_unit.rl`, `stores/gas_plant.rl` |
 | NFR-06 | Parameterised Cypher only, kept in `queries/` | DONE | All Cypher in `queries/`. The only text substitution is the validated integer hop bound, which Relate requires as a literal |
 | NFR-07 | Schema validation of every input file and tool payload | DONE | `validate.py`; MCP tools publish `inputSchema` and validate through the same functions |
@@ -172,8 +176,8 @@ A what-if repeats the check with a hypothetical change and always re-runs the wh
 
 | Layer | Question | Status |
 |---|---|---|
-| Cypher against an independent traversal on randomized small topologies | Do both compute the same specified behaviour? | Done: 120 random plants, plus every eval case |
-| Hand-written adversarial cases | Are the edge cases handled? | Done: 33 eval cases and the rule tests |
+| Cypher against an independent traversal on randomized small topologies | Do both compute the same specified behaviour? | Done: <!--stat:random_plants-->120<!--/stat--> random plants, plus every eval case |
+| Hand-written adversarial cases | Are the edge cases handled? | Done: <!--stat:eval_cases-->34<!--/stat--> eval cases and the rule tests |
 | Practitioner review | Are the scenario, assumptions and wording plausible? | Not started |
 
 Adversarial cases, all covered: worksite already exposed; second source added; removed inline component; barrier reached but not passed; unknown valve off and on a bypass; tied shortest paths; old evaluation reopened.
@@ -236,9 +240,9 @@ Electrical isolation, fluid properties, pressure levels, flow simulation, multi-
 | | DONE | PARTIAL | MISSING |
 |---|---:|---:|---:|
 | Functional (29) | 29 | 0 | 0 |
-| Non-functional (11) | 10 | 1 | 0 |
-| **Total (40)** | **39** | **1** | **0** |
+| Non-functional (11) | 11 | 0 | 0 |
+| **Total (40)** | **40** | **0** | **0** |
 
 Also done: the agent session for the M2 gate (`docs/agent-session.md`), the project page (`docs/index.html`), gallery images (`docs/media/`) and a sample evidence report (`docs/report-PTW-2201.html`).
 
-What remains, and needs a person: run on macOS (NFR-04), make the repository public, record the demo video, and ask a practitioner to review the model (section 9).
+What remains, and needs a person: make the repository public, record the demo video, and ask a practitioner to review the model (section 9).

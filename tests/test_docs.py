@@ -61,3 +61,28 @@ def test_ci_runs_install_tests_and_eval_on_three_systems():
     for needle in ("ubuntu-latest", "macos-latest", "windows-latest", '"3.12"',
                    "pip install .", "python -m pytest", "python eval/compare.py"):
         assert needle in text, needle
+
+
+def test_published_numbers_match_the_measured_ones():
+    import json
+    import subprocess
+    import sys
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import mutations
+    import stats as stats_script
+
+    stats = json.loads((ROOT / "docs" / "stats.json").read_text(encoding="utf-8"))
+    total, random_plants = stats_script.collected()
+    assert (stats["tests_total"], stats["random_plants"]) == (total, random_plants), \
+        "test count changed: run python scripts/stats.py"
+    assert stats["tests_passed"] == total
+    for key, value in stats_script.eval_numbers().items():
+        assert stats[key] == value, f"{key}: run python scripts/stats.py"
+    assert stats["mutations_total"] == len(mutations.MUTATIONS), "mutations changed: run python scripts/stats.py"
+    assert stats["mutations_caught"] == stats["mutations_total"], "a mutation survives"
+    for path in stats_script.PUBLISHED:
+        text = path.read_text(encoding="utf-8")
+        marks = stats_script.MARK.findall(text)
+        assert {"tests_passed", "eval_cases"} <= {k for k, _ in marks}, f"{path.name} has no marked numbers"
+        for key, shown in marks:
+            assert shown == str(stats[key]), f"{path.name}: {key} shows {shown}, measured {stats[key]}"

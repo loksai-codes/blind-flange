@@ -1,0 +1,68 @@
+{
+  "tests_passed": 240,
+  "tests_total": 240,
+  "tests_failed": 0,
+  "random_plants": 120,
+  "eval_cases": 34,
+  "eval_matched": 34,
+  "eval_no_verdict": 7,
+  "risky_stopped_by_graph": "18 of 18",
+  "tag_matching_stopped": "8 of 15",
+  "oracle_agreed": 34,
+  "replay_same": 34,
+  "mutations_total": 10,
+  "mutations_caught": 10,
+  "mutations": [
+    {
+      "name": "M1 unknown state treated as closed",
+      "caught": true,
+      "first_failure": "tests/test_docs.py::test_published_numbers_match_the_measured_ones"
+    },
+    {
+      "name": "M2 search-bound check removed",
+      "caught": true,
+      "first_failure": "tests/test_cli.py::test_incomplete_exits_3"
+    },
+    {
+      "name": "M3 set skips the evaluator",
+      "caught": true,
+      "first_failure": "tests/test_checks.py::test_set_refuses_a_blocked_change_and_writes_nothing"
+    },
+    {
+      "name": "M4 approval writes verified observations",
+      "caught": true,
+      "first_failure": "tests/test_checks.py::test_approve_stores_permit_plans_its_state_changes_and_bumps_revision"
+    },
+    {
+      "name": "M5 truncated search returns CLEAR",
+      "caught": true,
+      "first_failure": "tests/test_cli.py::test_incomplete_exits_3"
+    },
+    {
+      "name": "M6 existing hazards hidden",
+      "caught": true,
+      "first_failure": "tests/test_checks.py::test_survey_is_empty_at_start_of_shift_and_finds_a_standing_hazard"
+    },
+    {
+      "name": "M7 stale-revision check removed",
+      "caught": true,
+      "first_failure": "tests/test_cli.py::test_stale_revision_is_refused"
+    },
+    {
+      "name": "M8 replay always reports a match",
+      "caught": true,
+      "first_failure": "tests/test_docs.py::test_published_numbers_match_the_measured_ones"
+    },
+    {
+      "name": "M9 shared worksite not detected",
+      "caught": true,
+      "first_failure": "tests/test_checks.py::test_two_permits_on_the_same_worksite_is_a_hold"
+    },
+    {
+      "name": "M10 observation accepted without an observer",
+      "caught": true,
+      "first_failure": "tests/test_docs.py::test_published_numbers_match_the_measured_ones"
+    }
+  ],
+  "mutations_caught_text": "10 of 10"
+}
