@@ -94,4 +94,6 @@ def test_review_pack_exists_and_the_readme_does_not_claim_a_review():
                      "3. **Which links look wrong?**"):
         assert question in pack
     assert "Practitioner review: pending" in README
-    assert not re.search(r"(reviewed by|review by) (a |an )?(practising|process|operations)", README, re.I)
+    # "has not been reviewed by a process safety engineer" is the disclaimer; any other claim fails.
+    assert not re.search(r"(?<!not been )(reviewed by|review by) (a |an )?(practising|process|operations)",
+                         README, re.I)
