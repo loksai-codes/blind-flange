@@ -94,7 +94,19 @@ and again on Windows 11 with Python 3.12. Not yet verified on macOS.
 
 ## Not yet verified
 - The `relate` command-line tool and `relate serve --mcp`. `pip install
-  relate-db` does not install a `relate` executable. Find the documented
-  install route before planning around it.
+  relate-db` does not install a `relate` executable, and nothing in the
+  `relate` package mentions serve or MCP. What the upstream README and MCP spec
+  (github.com/relatedb/relate, read 16 Nov) document, not tried here:
+  - Install: `curl -sSfL https://relatedb.ai/install.sh | bash` (macOS, Linux)
+    or `irm https://relatedb.ai/install.ps1 | iex` (Windows PowerShell).
+  - `relate serve --database PATH --mcp PORT|stdio`, with `--read-only`
+    ("no writer lease"). Tools: `get_schema`, `read_cypher`, and
+    `write_cypher` unless read-only. HTTP uses Basic auth; stdio has none.
+  - The docs give the CLI as 1.0.3; this project pins `relate-db==1.0.1`.
+    They do not say whether a 1.0.1 `.rl` opens in the 1.0.3 CLI.
+  Blind Flange does not depend on it. `blindflange mcp` is its own stdio
+  server, with assessment tools and no write tool. A judge could point
+  `relate serve --read-only --mcp stdio` at a committed store to run raw
+  Cypher beside it, once someone checks that the file opens.
 - Performance beyond a few hundred nodes. The 151-component gas plant takes
   about 40 ms per assessment (eight queries, plus recording) on a laptop.

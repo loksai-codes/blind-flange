@@ -229,7 +229,7 @@ Electrical isolation, fluid properties, pressure levels, flow simulation, multi-
 
 ## 14. Changes from the previous version
 
-- All functional requirements are DONE. NFR-04 (macOS and Linux) is PARTIAL until re-run.
+- All functional requirements are DONE. NFR-04 (macOS and Linux) is DONE: CI passed on all three systems.
 - Rule 1 states the `removed` open end explicitly; the first version's wording dropped it by mistake.
 - HOLD now also covers a proven existing hazard that the request leaves in place.
 - New finding code: PRESSURE_REACHES_OPEN_END.
