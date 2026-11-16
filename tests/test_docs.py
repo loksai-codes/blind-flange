@@ -52,3 +52,12 @@ def test_every_make_target_has_a_plain_command_beside_it():
     for line in README.splitlines():
         for target in re.findall(r"`make (\w+)`", line):
             assert plain[target] in line, line
+
+
+def test_ci_runs_install_tests_and_eval_on_three_systems():
+    ci = ROOT / ".github" / "workflows" / "ci.yml"
+    assert ci.is_file()
+    text = ci.read_text(encoding="utf-8")
+    for needle in ("ubuntu-latest", "macos-latest", "windows-latest", '"3.12"',
+                   "pip install .", "python -m pytest", "python eval/compare.py"):
+        assert needle in text, needle

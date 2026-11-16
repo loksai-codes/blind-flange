@@ -1,0 +1,35 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the package (non-editable)
+        run: python -m pip install .
+
+      - name: Install the test runner
+        run: python -m pip install "pytest>=8"
+
+      - name: Tests
+        run: python -m pytest -q
+
+      - name: Eval
+        run: python eval/compare.py
+
+      - name: Committed stores and eval results are unchanged
+        shell: bash
+        run: git diff --exit-code -- stores/ eval/results.md
