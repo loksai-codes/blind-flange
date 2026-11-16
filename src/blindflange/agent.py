@@ -124,11 +124,8 @@ def call(store_path: str, name: str, args: dict) -> dict:
                                     stale_before=store.hours_before(info["as_of"], info["max_age_hours"]))
         finally:
             conn.close()
-        conn = store.connect(store_path)
-        try:
+        with store.scratch_copy(store_path) as conn:
             survey = checks.survey(conn)
-        finally:
-            conn.close()
         return {"store": info, "active_permits": permits, "not_normal": off, "unconfirmed": unconfirmed,
                 "standing_hazards": _summary(survey)}
     if name == "find_tags":

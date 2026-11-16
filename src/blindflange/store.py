@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
+import tempfile
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
@@ -157,6 +159,28 @@ def connect(path: str | Path = MEMORY, read_only: bool = False, create: bool = F
         raise StoreError(f"{path} was not built by this version of blindflange (no Store node). "
                          f"Rebuild it with 'blindflange build'.")
     return conn
+
+
+@contextmanager
+def scratch_copy(path: str | Path):
+    """A read-write connection to a temporary copy of a store, deleted afterwards.
+
+    For reads that need a rolled-back transaction (the handover survey). Relate
+    rewrites a .rl file whenever a read-write connection closes, even after a
+    rollback, so working on a copy leaves the real file's bytes untouched.
+    """
+    connect(path, read_only=True).close()                 # same checks and errors as opening it
+    tmp = Path(tempfile.mkdtemp(prefix="blindflange-"))
+    try:
+        copy = tmp / "copy.rl"
+        shutil.copyfile(path, copy)
+        conn = connect(copy)
+        try:
+            yield conn
+        finally:
+            conn.close()
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 @contextmanager

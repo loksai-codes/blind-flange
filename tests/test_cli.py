@@ -99,3 +99,9 @@ def test_validate_lists_every_problem(tmp_path):
     r = run("validate", bad)
     assert r.returncode == 1
     assert "must be a list of tags" in r.stdout and "needs 'tag' and 'to'" in r.stdout
+
+
+def test_handover_does_not_change_the_store_file(rl):
+    before = rl.read_bytes()
+    assert run("handover", "--store", rl).returncode == 0
+    assert rl.read_bytes() == before

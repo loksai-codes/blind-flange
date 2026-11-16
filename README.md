@@ -119,15 +119,15 @@ If your system blocks the `blindflange` launcher (Windows Application Control ca
 | Command | What it does |
 | --- | --- |
 | `blindflange check <permit.yaml> --store <file>` | Assess a permit. Records an Evaluation; changes nothing else. |
-| `blindflange whatif --set TAG=STATE [--permit <permit.yaml>] --store <file>` | Assess hypothetical changes, with or without a permit. Changes nothing. |
-| `blindflange approve <permit.yaml> --store <file> [--revision N]` | Assess, then store the permit if CLEAR or HOLD. Refused if the store has moved past revision N. |
-| `blindflange set TAG=STATE --store <file>` | Record a state change. Refused unless CLEAR or HOLD (`--force` overrides). |
+| `blindflange whatif --set TAG=STATE [--permit <permit.yaml>] --store <file>` | Assess hypothetical changes, with or without a permit. Records an Evaluation; changes no plant state or permits. |
+| `blindflange approve <permit.yaml> --store <file> [--revision N]` | Assess, then store the permit if CLEAR or HOLD, with its state changes recorded as planned. Records an Evaluation either way. Refused if the store has moved past revision N. |
+| `blindflange set TAG=STATE --store <file>` | Record an observed state (`--by` names the observer). Refused unless CLEAR or HOLD (`--force` overrides). Records an Evaluation either way. |
 | `blindflange close <permit-id> --store <file>` | Close a permit and list the isolations other permits still need. |
 | `blindflange reach <tag> [--set TAG=STATE] --store <file>` | Show what a component could pressurise. |
 | `blindflange handover --store <file>` | Active permits, abnormal and unconfirmed states, standing hazards. |
 | `blindflange evaluations / show / replay <EVAL-n> --store <file>` | List, show and re-run recorded decisions. |
 | `blindflange report <EVAL-n> --store <file>` | Write an HTML evidence page: the path, barriers beside it, and the plant. |
-| `blindflange mcp --store <file>` | Serve agent tools over MCP (stdio). See below. |
+| `blindflange mcp --store <file>` | Serve agent tools over MCP (stdio). `assess_change` and `what_if` record an Evaluation; no tool changes plant state or permits. See below. |
 | `blindflange find "<text>" --store <file>` | Find equipment tags from free text. |
 | `blindflange validate <file.yaml>` | List every problem in a plant, scenario or permit file. |
 | `blindflange build <scenario.yaml> -o <file>` | Rebuild a store from YAML. |

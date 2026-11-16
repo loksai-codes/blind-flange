@@ -159,11 +159,8 @@ def cmd_handover(a) -> int:
         unconfirmed = store.run(conn, "uncertain", stale_before=stale_before)
     finally:
         conn.close()
-    conn = store.connect(a.store)             # the survey writes inside a rolled-back transaction
-    try:
+    with store.scratch_copy(a.store) as conn:  # the survey writes inside a rolled-back transaction
         survey = checks.survey(conn, a.max_hops)
-    finally:
-        conn.close()
     if a.json:
         print(json.dumps({"store": info, "permits": permits, "not_normal": off, "unconfirmed": unconfirmed,
                           "survey": survey.to_dict()}, indent=2))

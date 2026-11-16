@@ -74,3 +74,10 @@ def test_mcp_stdio_session(rl):
     assert len(out[1]["result"]["tools"]) == 6
     assert any(m["tag"] == "PSV-504" for m in out[2]["result"]["structuredContent"]["matches"])
     assert out[3]["result"]["structuredContent"]["conflict_verdict"] == "BLOCK"
+
+
+def test_handover_tool_does_not_change_the_store_file(rl):
+    from pathlib import Path
+    before = Path(rl).read_bytes()
+    agent.call(rl, "handover", {})
+    assert Path(rl).read_bytes() == before
