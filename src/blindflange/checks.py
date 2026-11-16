@@ -132,7 +132,9 @@ def baseline(conn, pid: str) -> dict[str, list[str]]:
 
 def check(conn, permit: dict, approve: bool = False) -> Result:
     """Check a permit. With approve=True, store it as active if it is not blocked."""
-    pid = permit["id"]
+    pid = permit.get("id") if isinstance(permit, dict) else None
+    if not pid:
+        raise store.StoreError("permit has no id")
     with store.transaction(conn, commit=False):
         store.write_permit(conn, permit, status="requested")
         found = findings_for(conn, pid)

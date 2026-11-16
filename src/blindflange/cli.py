@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 
-from . import checks, store
+from . import checks, store, validate
 
 ARROW = " -> "
 
@@ -45,12 +46,16 @@ def cmd_build(a) -> int:
 
 
 def cmd_check(a, approve: bool = False) -> int:
-    permit = store.load_yaml(a.permit)
-    conn = store.connect(a.store)
-    try:
-        r = checks.check(conn, permit, approve=approve)
-    finally:
-        conn.close()
+    permit = store.load_permit(a.permit)
+    if approve:
+        conn = store.connect(a.store)
+        try:
+            r = checks.check(conn, permit, approve=True)
+        finally:
+            conn.close()
+    else:
+        with store.dry_run(a.store) as conn:
+            r = checks.check(conn, permit)
     _print_result(r, a.json)
     if approve and not a.json:
         print("\n  Not approved. Nothing was written." if r.verdict == checks.BLOCK
@@ -146,15 +151,82 @@ def cmd_find(a) -> int:
         conn.close()
     for r in got:
         print(f"  {r['tag']:<10} {r['name']}")
+    if not got:
+        print("  No matching components.")
     return 0
 
 
+def cmd_validate(a) -> int:
+    """List every problem in a plant, scenario or permit file."""
+    data = store.load_yaml(a.file)
+    if isinstance(data, dict) and "components" in data:
+        what, problems = "plant", validate.plant(data)
+    elif isinstance(data, dict) and "plant" in data:
+        what, problems = "scenario", []
+        try:
+            store.load_scenario(a.file)                     # the scenario, its plant, and permit tags
+        except store.ValidationError as e:
+            problems = [p if e.source == str(a.file) else f"{e.source}: {p}" for p in e.problems]
+    elif isinstance(data, dict) and "id" in data:
+        what, problems = "permit", validate.permit(data)
+        if not problems and a.store:
+            with store.dry_run(a.store) as conn:
+                tags = sorted({t for k in ("works_on", "relies_on", "energises") for t in data.get(k, [])}
+                              | {o["tag"] for o in data.get("operates", [])})
+                kinds = {r["tag"]: r["kind"] for r in store.rows(
+                    conn, "MATCH (c:Component) WHERE c.tag IN $tags RETURN c.tag AS tag, c.kind AS kind",
+                    tags=tags)}
+            problems = validate.permit(data, kinds)
+    else:
+        raise store.StoreError(f"{a.file}: not a plant (components), scenario (plant) or permit (id) file")
+    for p in problems:
+        print(f"  {p}")
+    if problems:
+        print(f"{len(problems)} problem{'s' if len(problems) != 1 else ''} in {a.file}", file=sys.stderr)
+        return 1
+    note = " (tags not checked; add --store to check them)" if what == "permit" and not a.store else ""
+    print(f"{a.file}: valid {what}{note}")
+    return 0
+
+
+class _Parser(argparse.ArgumentParser):
+    """Usage errors are one line and exit 1, so exit 2 always means BLOCK."""
+
+    def error(self, message):
+        self.exit(1, f"error: {message} (see '{self.prog} -h')\n")
+
+
+def _run(a) -> int:
+    try:
+        return a.fn(a)
+    except store.StoreError as e:
+        print(f"error: {e}", file=sys.stderr)
+    except KeyboardInterrupt:
+        print("error: interrupted", file=sys.stderr)
+        return 130
+    except BrokenPipeError:
+        return 0
+    except Exception as e:                                  # never show a traceback
+        if os.environ.get("BLINDFLANGE_DEBUG"):
+            raise
+        detail = str(e).splitlines()[0] if str(e) else ""
+        print(f"error: unexpected {type(e).__name__}{': ' + detail if detail else ''} "
+              f"(set BLINDFLANGE_DEBUG=1 for a traceback)", file=sys.stderr)
+    return 1
+
+
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="blindflange", description=__doc__)
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError):
+            pass
+    ap = _Parser(prog="blindflange", description=__doc__,
+                 epilog="Exit codes: 0 done (CLEAR or HOLD), 1 error, 2 BLOCK or refused.")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     def add(name, fn, help_):
-        p = sub.add_parser(name, help=help_)
+        p = sub.add_parser(name, help=help_, description=help_)
         p.set_defaults(fn=fn)
         return p
 
@@ -186,13 +258,12 @@ def main(argv=None) -> int:
     p = add("find", cmd_find, "find equipment tags from free text")
     p.add_argument("text")
     p.add_argument("--store", required=True)
+    p = add("validate", cmd_validate, "list every problem in a plant, scenario or permit file")
+    p.add_argument("file")
+    p.add_argument("--store", help="also check a permit's tags against this store")
 
     a = ap.parse_args(argv)
-    try:
-        return a.fn(a)
-    except store.StoreError as e:
-        print(f"error: {e}", file=sys.stderr)
-        return 1
+    return _run(a)
 
 
 if __name__ == "__main__":

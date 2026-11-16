@@ -4,9 +4,12 @@ __pycache__/
 .venv/
 *.rl.lock
 *.wal
+*.building
 .DS_Store
 # private working files
 CLAUDE.md
 SUBMISSION.md
 docs/PLAN.md
 .claude/
+build/
+dist/

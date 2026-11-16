@@ -22,9 +22,9 @@ def run_case(scenario: Path, case: dict) -> dict:
             with store.transaction(conn, commit=True):
                 store.set_state(conn, *step["set"])
         elif "approve" in step:
-            checks.check(conn, store.load_yaml(PERMITS / f"{step['approve']}.yaml"), approve=True)
+            checks.check(conn, store.load_permit(PERMITS / f"{step['approve']}.yaml"), approve=True)
     t0 = time.perf_counter()
-    r = checks.check(conn, store.load_yaml(PERMITS / f"{case['request']}.yaml"))
+    r = checks.check(conn, store.load_permit(PERMITS / f"{case['request']}.yaml"))
     ms = (time.perf_counter() - t0) * 1000
     conn.close()
     hops = max((len(f.path) - 1 for f in r.findings if f.path), default=0)

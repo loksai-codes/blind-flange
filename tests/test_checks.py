@@ -9,7 +9,7 @@ SCENARIO = ROOT / "data" / "scenarios" / "condensate_unit.yaml"
 
 
 def permit(pid):
-    return store.load_yaml(ROOT / "data" / "permits" / f"{pid}.yaml")
+    return store.load_permit(ROOT / "data" / "permits" / f"{pid}.yaml")
 
 
 @pytest.fixture
