@@ -4,6 +4,8 @@ Before a work permit is approved, Blind Flange walks the plant's piping graph in
 
 Decision support only. This is not a safety system and has not been reviewed by a process safety engineer.
 
+Project page: [`docs/index.html`](docs/index.html) · Sample evidence report: [`docs/report-PTW-2201.html`](docs/report-PTW-2201.html) · Agent session: [`docs/agent-session.md`](docs/agent-session.md)
+
 ```
 $ blindflange check data/permits/PTW-0511.yaml --store stores/condensate_unit.rl
 
@@ -105,7 +107,7 @@ The same statement runs twice. With `$possible = false` the walk only passes com
 Prerequisites: Python 3.10 or later, and git.
 
 ```
-git clone <REPO_URL> && cd blind-flange
+git clone https://github.com/loksai-codes/blind-flange.git && cd blind-flange
 pip install -e .
 blindflange check data/permits/PTW-0511.yaml --store stores/condensate_unit.rl
 ```
@@ -138,6 +140,8 @@ Every assessment returns two fields. `assessment_status` is COMPLETE, INCOMPLETE
 claude mcp add blindflange -- python -m blindflange mcp --store stores/gas_plant.rl
 ```
 
+[`docs/agent-session.md`](docs/agent-session.md) records Claude Code asked "can train B be restarted?" with and without the tool. Without it, the agent found no direct conflict and hedged. With it, the agent made one `assess_change` call, refused, and quoted the 12-hop path.
+
 For development: `pip install -e ".[dev]"`, then `make test`, `make eval` and `make stores`. On a machine without `make`, run the commands in the `Makefile` directly.
 
 ## Where the data lives
@@ -166,7 +170,7 @@ Both plants are illustrative and were written for this project. The condensate u
 
 ## Results
 
-See `eval/results.md`. On 33 author-written cases across both plants, the graph check gives the expected verdict, assessment status and finding codes in all 33. Seven of those cases expect "cannot say" or an error, and get it. Tag matching stops 7 of the 14 risky permit requests; it cannot assess a plain state change at all. An independent breadth-first walk (`eval/oracle.py`), written from the spec rather than from the Cypher, agrees with the graph on every hazard set in all 33 cases and on 120 random plants in the tests. Every recorded evaluation replays to the same result.
+See `eval/results.md`. On 33 author-written cases across both plants, the graph check gives the expected verdict, assessment status and finding codes in all 33. Seven of those cases expect "cannot say" or an error, and get it. Tag matching stops 7 of the 14 risky permit requests; it cannot assess a plain state change at all. An independent breadth-first walk (`eval/oracle.py`), written from the spec rather than from the Cypher, agrees with the graph on every hazard set in all 33 cases and on 120 random plants in the tests. Every recorded evaluation replays to the same result. The tests and eval pass from a fresh clone on Windows and on Linux.
 
 These cases show what the checks do. They were written by the author, and they are not evidence of field performance.
 

@@ -1,9 +1,13 @@
 # Blind Flange: Project Requirements
 
-Status basis: branch `step-2-robustness`, 16 Nov 2026. Verified by a fresh
-`git clone` into a new virtual environment on Windows 11 with Python 3.12:
-`pip install -e .` and the README's check command gave BLOCK (exit 2); with
-`.[dev]`, 197 tests passed and `eval/compare.py` matched 33 of 33 cases.
+Status basis: 16 Nov 2026. Verified by a fresh `git clone`:
+- Windows 11, Python 3.12, new virtual environment: `pip install -e .` and the
+  README's check command gave BLOCK (exit 2); with `.[dev]`, 197 tests passed and
+  `eval/compare.py` matched 33 of 33 cases.
+- Ubuntu 24.04 under WSL2, Python 3.12.3: the same check gave BLOCK (exit 2), 197
+  tests passed, 33 of 33 cases matched. That machine has no pip (and no sudo to
+  install it), so the pinned dependency wheels were downloaded by pip on Windows
+  and unpacked, with the package laid out as an install lays it out.
 
 The first version of this file (audit of commit `3d84618`) listed 12 DONE,
 16 PARTIAL and 12 MISSING. Section 14 records what changed.
@@ -104,7 +108,7 @@ Permit status (authorization) is kept separate from component observed state. Ap
 | NFR-01 | Install and first result from a fresh clone in three commands | DONE | Fresh clone, `pip install -e .`, `python -m blindflange check ...`: BLOCK, exit 2 (Windows). The `blindflange` launcher can be blocked by Windows Application Control; README says so |
 | NFR-02 | Clean errors, no tracebacks | DONE | `cli._run`; `test_bad_input_gives_one_line_errors_and_no_traceback` |
 | NFR-03 | One pinned `relate-db` version | DONE | `relate-db==1.0.1` in `pyproject.toml` |
-| NFR-04 | Runs on macOS and Linux | PARTIAL | This version verified on Windows only. Linux was verified for M0 per `docs/RELATE_NOTES.md`; re-run before submitting |
+| NFR-04 | Runs on macOS and Linux | PARTIAL | Linux verified (Ubuntu 24.04, WSL2; see status basis). macOS not yet run; Relate publishes wheels for it but nobody has tried this repo there |
 | NFR-05 | Inspectable committed `.rl` stores | DONE | `stores/condensate_unit.rl`, `stores/gas_plant.rl` |
 | NFR-06 | Parameterised Cypher only, kept in `queries/` | DONE | All Cypher in `queries/`. The only text substitution is the validated integer hop bound, which Relate requires as a literal |
 | NFR-07 | Schema validation of every input file and tool payload | DONE | `validate.py`; MCP tools publish `inputSchema` and validate through the same functions |
@@ -205,9 +209,9 @@ Electrical isolation, fluid properties, pressure levels, flow simulation, multi-
 | DEF-09 | Tests that did not assert what they claimed | Fixed |
 | DEF-10 | `.gitignore` merged lines | Fixed |
 | DEF-11 | Validation holes | Fixed; test |
-| DEF-12 | Documentation drift | Fixed except `<REPO_URL>` in the README, which needs the public repo URL. The reserved id `__change__` carries a state change through the evaluator and is rejected as a permit id |
+| DEF-12 | Documentation drift | Fixed. The reserved id `__change__` carries a state change through the evaluator and is rejected as a permit id |
 | DEF-13 | Cypher inline in Python | Fixed: `queries/store.cypher` |
-| DEF-14 | Approval writes plant state | Kept by design and documented: approval applies the permit's planned changes, stamped with the permit id. See open question 7 |
+| DEF-14 | Approval writes plant state | Kept by design (open question 7, decided): approval applies the permit's planned changes, stamped with the permit id as observer |
 
 ## 13. Open questions
 
@@ -217,7 +221,7 @@ Electrical isolation, fluid properties, pressure levels, flow simulation, multi-
 4. `ENERGISES` and `OPERATES` edges persist for active permits, so `ISOLATION_REMOVED` and `ENERGISES_WORKSITE` can be found against them.
 5. ~~Is `in_service` a valid `OPERATES {to}` for a pump?~~ Yes, and it makes the pump a live source.
 6. `CLAUDE.md`, `SUBMISSION.md` and `docs/PLAN.md` are gitignored. Decide which should be public before submitting.
-7. `approve` records a coordinator's decision and applies the permit's planned state changes. Should approval instead leave states untouched until an operator confirms them with `set`? That would be closer to real practice; it is a small change in `checks._decide_and_write`.
+7. ~~Should `approve` apply the permit's planned state changes?~~ Decided: yes. The approved permit's changes are written with the permit id as `observed_by`, so the store says they are planned, not seen. That keeps "what was checked is exactly what is stored". An operator who confirms a state with `set` replaces the stamp. A practitioner should still confirm this suits real practice.
 
 ## 14. Changes from the previous version
 
@@ -235,4 +239,6 @@ Electrical isolation, fluid properties, pressure levels, flow simulation, multi-
 | Non-functional (11) | 10 | 1 | 0 |
 | **Total (40)** | **39** | **1** | **0** |
 
-What remains before submission: run on Linux and macOS (NFR-04), replace `<REPO_URL>`, record the demo video and an agent session, and ask a practitioner to review the model (section 9).
+Also done: the agent session for the M2 gate (`docs/agent-session.md`), the project page (`docs/index.html`), gallery images (`docs/media/`) and a sample evidence report (`docs/report-PTW-2201.html`).
+
+What remains, and needs a person: run on macOS (NFR-04), make the repository public, record the demo video, and ask a practitioner to review the model (section 9).

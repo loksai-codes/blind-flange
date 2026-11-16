@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blind Flange</title>
+<meta name="description" content="Permit-to-work conflict checks over a plant's piping graph, on Relate. Every finding carries the path that proves it, and the tool withholds CLEAR when it cannot know.">
+<style>
+:root { --bg:#fbfaf7; --fg:#1d1d1b; --muted:#5f5e59; --line:#dcd8cd; --card:#ffffff; --accent:#b3261e;
+  --clear:#1e7a3c; --amber:#9a5a00; --code:#f1eee6; }
+@media (prefers-color-scheme: dark) { :root { --bg:#141413; --fg:#ecebe6; --muted:#a3a19a; --line:#34332f;
+  --card:#1c1c1a; --accent:#ff8a80; --clear:#7bd88f; --amber:#f2a33a; --code:#22221f; } }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font:17px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 900px; margin: 0 auto; padding: 48px 16px 80px; }
+h1 { font-size: 44px; line-height: 1.1; margin: 0 0 12px; letter-spacing: -0.02em; }
+h2 { font-size: 26px; margin: 56px 0 12px; letter-spacing: -0.01em; }
+h3 { font-size: 18px; margin: 24px 0 6px; }
+p.lede { font-size: 21px; color: var(--muted); margin: 0 0 24px; }
+a { color: inherit; text-underline-offset: 3px; }
+.note { color: var(--muted); font-size: 15px; }
+.badge { display:inline-block; font: 700 13px/1 ui-monospace, Consolas, monospace; padding: 5px 8px; border-radius: 4px; color: #fff; }
+.b-block { background: #b3261e; } .b-clear { background: #1e7a3c; } .b-inc { background: #9a5a00; } .b-hold { background: #7a5c00; }
+figure { margin: 20px 0; } figure img { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); display: block; }
+figcaption { color: var(--muted); font-size: 14px; margin-top: 6px; }
+pre, code { font-family: ui-monospace, Consolas, "Cascadia Mono", monospace; }
+pre { background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 14px; line-height: 1.5; }
+code { background: var(--code); padding: 1px 5px; border-radius: 4px; font-size: 0.92em; }
+pre code { background: none; padding: 0; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+td, th { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { font-weight: 600; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+.card h3 { margin-top: 0; }
+.links a { margin-right: 18px; }
+.warn { border-left: 4px solid var(--amber); padding: 8px 14px; background: var(--card); }
+.scroll { overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+<p class="note">Relate by Neo4j Hackathon 2026 entry</p>
+<h1>Blind Flange</h1>
+<p class="lede">Before a work permit is approved, Blind Flange walks the plant's piping graph in Relate to find conflicts with other open jobs, shows the path that proves each one, and refuses to say CLEAR when it cannot know.</p>
+<p class="links"><a href="https://github.com/loksai-codes/blind-flange">Source code</a>
+<a href="report-PTW-2201.html">Sample evidence report</a>
+<a href="agent-session.md">Agent session</a>
+<a href="SPEC.md">Specification</a></p>
+<p class="warn">Decision support only. Not a safety system. Not reviewed by a process safety engineer. Both plants are illustrative.</p>
+
+<h2>The problem</h2>
+<p>On a process plant every maintenance job runs under a permit to work, and the equipment is isolated before anyone opens it. Two permits can each look safe on their own and still conflict, because the equipment they name is joined by piping that neither permit mentions.</p>
+<p>On Piper Alpha in 1988, a condensate pump was restarted while its relief valve was out for maintenance under another permit, with a blind flange over the opening. The two permits named different equipment. That accident is the motivation; this tool does not claim it would have prevented it.</p>
+<p>Matching permits by equipment tag cannot see this. The conflict is a path.</p>
+
+<h2>The answer is a path</h2>
+<figure><img src="media/1-block.png" alt="Terminal output: BLOCK, pressure would reach the temporary blind BF-504 by a four-hop path; tag matching would pass."><figcaption>Starting pump A would put pressure on a temporary blind another permit relies on. The two permits share no tag.</figcaption></figure>
+<p>Close one valve on that path and the same request is <span class="badge b-clear">CLEAR</span>. Lose track of that valve's state and the tool says it cannot decide: <span class="badge b-inc">INCOMPLETE</span>, no verdict, and the unconfirmed valve named.</p>
+<figure><img src="media/2-clear-then-unknown.png" alt="Terminal: after closing RLV-504 the check is CLEAR; after marking it unknown, INCOMPLETE with an UNCONFIRMED finding."><figcaption>"I don't know, and here is why" is an answer too.</figcaption></figure>
+
+<h2>A plant nobody can check by eye</h2>
+<p>The second plant is an invented gas processing plant: 151 components, three compression trains, dehydration, export, condensate, flare, drains and utilities. Train C is down. Its relief valve is in the workshop and a temporary blind is fitted. The isolation valve its permit lists is closed, but a small pressurisation bypass around it was left open. Restarting train B reaches that blind in 12 hops.</p>
+<figure><img src="media/3-gas-plant-12-hops.png" alt="Terminal: restart of compression blocked, 12-hop path through BV-231 to BF-230."><figcaption>The route goes around the listed isolation, not through it.</figcaption></figure>
+<figure><img src="media/4-report.png" alt="HTML evidence report: verdict, the path drawn as a strip with barriers holding beside each step."><figcaption><code>blindflange report</code> draws the path, the barriers holding beside each step, the states as assessed, and the whole plant. <a href="report-PTW-2201.html">Open the full report.</a></figcaption></figure>
+
+<h2>How Relate does the reasoning</h2>
+<p>One <code>.rl</code> file holds the plant, the observed valve and blind states, every open permit and a record of every decision. A shift hands the whole picture to the next as one file, with no server.</p>
+<figure><img src="media/7-model.png" alt="Graph model: Permit linked to Component by WORKS_ON, RELIES_ON, ENERGISES, OPERATES; Component CONNECTED_TO Component; Evaluation and Store nodes."></figure>
+<p>The main check is one Cypher statement. A quantified path pattern filters every hop, so the walk stops at each closed valve or installed blind:</p>
+<pre><code>MATCH path = SHORTEST 1 (s)
+  ((a)-[:CONNECTED_TO]-(b)
+    WHERE ( NOT coalesce(a.state, 'unknown') IN ['closed', 'installed', 'removed', 'unknown']
+            AND coalesce(a.observed_at, '') &gt;= $stale_before )
+       OR ( $possible AND (coalesce(a.state, 'unknown') = 'unknown'
+                           OR coalesce(a.observed_at, '') &lt; $stale_before) )
+  ){0,100} (x:Component)
+OPTIONAL MATCH (q:Permit)-[r:WORKS_ON|RELIES_ON]-&gt;(x)</code></pre>
+<div class="grid">
+<div class="card"><h3>Proven or possible</h3><p>The same statement runs twice. Passing only states that are known and current gives a PROVEN finding. Also passing unconfirmed ones gives a POSSIBLE finding, which withholds the verdict instead of guessing.</p></div>
+<div class="card"><h3>Bounded, and honest about it</h3><p>Every walk has a hop limit. A second query looks one hop further. If the limit cut anything off, the result is INCOMPLETE, never CLEAR.</p></div>
+<div class="card"><h3>Dry runs in a transaction</h3><p>A request is written into the graph, its changes applied, the graph queried before and after, and everything rolled back. Approval is the same steps with a commit.</p></div>
+<div class="card"><h3>Every decision kept</h3><p>Each assessment stores its request, result and a snapshot of every input in the same file. <code>blindflange replay</code> re-runs it. A stale revision is refused.</p></div>
+</div>
+
+<h2>Two fields, never one guess</h2>
+<div class="scroll"><table>
+<tr><th>assessment_status</th><th>conflict_verdict</th><th>Meaning</th></tr>
+<tr><td>COMPLETE</td><td><span class="badge b-block">BLOCK</span></td><td>A proven conflict this request introduces, with its path.</td></tr>
+<tr><td>COMPLETE</td><td><span class="badge b-hold">HOLD</span></td><td>Review needed: a shared isolation, or a hazard that already exists and is not removed.</td></tr>
+<tr><td>COMPLETE</td><td><span class="badge b-clear">CLEAR</span></td><td>No conflict found, and nothing needed was unknown.</td></tr>
+<tr><td>INCOMPLETE</td><td>none</td><td>A state that matters is unknown or stale, or the search hit its bound.</td></tr>
+<tr><td>ERROR</td><td>none</td><td>Unusable input: unknown tag, ambiguous change, or stale revision. Recorded too.</td></tr>
+</table></div>
+
+<h2>An agent can ask, but not decide</h2>
+<p><code>blindflange mcp</code> serves six tools over the Model Context Protocol, on the Python standard library. There is no tool that approves a permit or changes the plant. We asked Claude Code the same question twice: can train B be restarted?</p>
+<div class="grid">
+<div class="card"><h3>Without the tool</h3><p>It read the permit list, found no direct conflict, and hedged: "verify the P&amp;IDs". It could not name the bypass, because the bypass is not in any permit.</p></div>
+<div class="card"><h3>With the tool</h3><p>One call to <code>assess_change</code>. It answered DO NOT APPROVE and quoted the 12-hop path, noting the route enters through BV-231 rather than the listed isolations. <a href="agent-session.md">Full transcript.</a></p></div>
+</div>
+
+<h2>Evidence</h2>
+<figure><img src="media/5-eval.png" alt="Eval table of 33 cases with expected and actual results, tag matching and oracle agreement."></figure>
+<ul>
+<li>33 author-written cases across both plants, each written before it was run: all 33 give the expected verdict, status and finding codes. Seven of them expect "cannot say" or an error.</li>
+<li>Tag matching stops 7 of the 14 risky permit requests.</li>
+<li>An independent breadth-first walk, written from the specification rather than the Cypher, agrees with the graph on every hazard set: in all 33 cases and on 120 random plants.</li>
+<li>Every recorded evaluation replays to the same result. 197 automated tests; the README's three commands verified from a fresh clone on Windows and Linux.</li>
+</ul>
+<p class="note">These cases show what the checks do. They are not evidence of field performance.</p>
+
+<h2>Try it</h2>
+<pre><code>git clone https://github.com/loksai-codes/blind-flange.git &amp;&amp; cd blind-flange
+pip install -e .
+blindflange check data/permits/PTW-0511.yaml --store stores/condensate_unit.rl</code></pre>
+
+<h2>What it is not</h2>
+<p>Pressure is modelled as reachability only: no flow direction, pressure levels or fluids. Only the final state is checked; multi-step procedures are not modelled. Electrical isolation is out of scope. Commercial control-of-work products such as Sphera, Enablon and IntelliPERMIT already manage permits and isolations together. Blind Flange does not replace them. It is a small, open, single-file tool whose every finding can be inspected as a graph path and replayed from its record.</p>
+<p class="note">Built with Relate by Neo4j (relate-db 1.0.1), Python and PyYAML. Claude (Anthropic) was used through Claude Code for research, design, code, tests and documentation, under the author's direction. No language model is used in any decision. MIT licence.</p>
+</main>
+</body>
+</html>
