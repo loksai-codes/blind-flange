@@ -226,6 +226,44 @@ def info(conn) -> dict:
     return got[0]
 
 
+def assessment_time(store_info: dict, at=None) -> str:
+    """When an assessment is made: --at if given; otherwise now for a live store,
+    or the store's as_of for a snapshot (so a committed snapshot always gives the
+    same answer)."""
+    if at:
+        return timestamp(at)
+    return now() if store_info.get("mode") == "live" else store_info["as_of"]
+
+
+def stale_before(store_info: dict, at=None) -> str:
+    return hours_before(assessment_time(store_info, at), store_info["max_age_hours"])
+
+
+def stale_observations(conn, at=None) -> list[dict]:
+    """Observations older than the store's threshold at the assessment time."""
+    return run(conn, "stale", stale_before=stale_before(info(conn), at))
+
+
+def shift_start(source: str | Path, out: str | Path, as_of=None, max_age_hours: float | None = None) -> dict:
+    """Copy a store to `out` and make the copy live, starting now (or at as_of)."""
+    source, out = Path(source), Path(out)
+    if out.suffix != ".rl":
+        raise StoreError(f"store files end in .rl: {out}")
+    if out.exists():
+        raise StoreError(f"{out} already exists; choose another name or delete it first")
+    if max_age_hours is not None and (isinstance(max_age_hours, bool) or max_age_hours <= 0):
+        raise StoreError("--max-age-hours must be a positive number")
+    connect(source, read_only=True).close()
+    shutil.copyfile(source, out)
+    conn = connect(out)
+    try:
+        with write(conn):
+            run(conn, "store_go_live", as_of=timestamp(as_of) if as_of else now(), max_age_hours=max_age_hours)
+        return info(conn)
+    finally:
+        conn.close()
+
+
 # ---------------------------------------------------------------- reading YAML
 
 def load_yaml(path: str | Path):
@@ -317,10 +355,10 @@ def _component_rows(components: list[dict], as_of: str) -> list[dict]:
 
 
 def _load(conn, components: list[dict], connections: list, as_of: str, max_age_hours: float, plant: str,
-          revision: int = 1, tie_ins: list | None = None) -> None:
+          revision: int = 1, tie_ins: list | None = None, mode: str = "snapshot") -> None:
     init_schema(conn)
     run(conn, "store_create", as_of=as_of, max_age_hours=max_age_hours, plant=plant, revision=revision,
-        tie_ins=[f"{a}>{b}" for a, b in (tie_ins or [])])
+        tie_ins=[f"{a}>{b}" for a, b in (tie_ins or [])], mode=mode)
     comp_rows = _component_rows(components, as_of)
     for label in LABELS:
         run(conn, f"load_{label.lower()}", rows=comp_rows)
@@ -389,7 +427,8 @@ def snapshot(conn) -> dict:
         comps.append({k: v for k, v in c.items() if v is not None})
     return {
         "store": {"revision": s["revision"], "as_of": s["as_of"], "max_age_hours": s["max_age_hours"],
-                  "plant": s["plant"], "tie_ins": [t.split(">", 1) for t in s["tie_ins"]]},
+                  "plant": s["plant"], "tie_ins": [t.split(">", 1) for t in s["tie_ins"]],
+                  "mode": s["mode"]},
         "components": comps,
         "connections": [[r["a"], r["b"]] for r in run(conn, "snapshot_connections")],
         "permits": [{k: v for k, v in p.items() if v not in (None, [])} for p in run(conn, "snapshot_permits")],
@@ -401,7 +440,7 @@ def from_snapshot(snap: dict):
     conn = connect(MEMORY)
     st = snap["store"]
     _load(conn, snap["components"], snap["connections"], st["as_of"], st["max_age_hours"], st["plant"],
-          revision=st["revision"], tie_ins=st.get("tie_ins", []))
+          revision=st["revision"], tie_ins=st.get("tie_ins", []), mode=st.get("mode", "snapshot"))
     for p in snap["permits"]:
         with transaction(conn, commit=True):
             write_permit(conn, p, status="active", approved_at=p.get("approved_at"), in_scenario=True,

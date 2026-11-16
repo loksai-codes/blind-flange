@@ -136,6 +136,8 @@ The last command prints the BLOCK result shown at the top of this page. Every as
 | `python -m blindflange evaluations / show / replay <EVAL-n> --store <file>` | List, show and re-run recorded decisions. |
 | `python -m blindflange report <EVAL-n> --store <file>` | Write an HTML evidence page: the path, barriers beside it, and the plant. |
 | `python -m blindflange mcp --store <file>` | Serve agent tools over MCP (stdio). `assess_change` and `what_if` record an Evaluation; no tool changes plant state or permits. See below. |
+| `python -m blindflange shift start --from <store> -o <live.rl>` | Copy a store and make the copy live: assessed at the current time from then on. |
+| `python -m blindflange freshness --store <file>` | List observations older than the store's threshold at the assessment time. |
 | `python -m blindflange find "<text>" --store <file>` | Find equipment tags from free text. |
 | `python -m blindflange validate <file.yaml>` | List every problem in a plant, scenario or permit file. |
 | `python -m blindflange build <scenario.yaml> -o <file>` | Rebuild a store from YAML. |
@@ -186,7 +188,7 @@ Both plants are illustrative and were written for this project. The condensate u
 
 ## Results
 
-See `eval/results.md` and `docs/stats.json` (both generated; `python scripts/stats.py` refreshes the numbers on this page). On <!--stat:eval_cases-->34<!--/stat--> author-written cases across both plants, the graph check gives the expected verdict, assessment status and finding codes in <!--stat:eval_matched-->34<!--/stat-->. <!--stat:eval_no_verdict-->7<!--/stat--> of those cases expect "cannot say" or an error, and get it. Tag matching stops <!--stat:tag_matching_stopped-->8 of 15<!--/stat--> risky permit requests; it cannot assess a plain state change at all. An independent breadth-first walk (`eval/oracle.py`), written from the spec rather than from the Cypher, agrees with the graph on every hazard set in <!--stat:oracle_agreed-->34<!--/stat--> cases and on <!--stat:random_plants-->120<!--/stat--> random plants in the tests. <!--stat:replay_same-->34<!--/stat--> recorded evaluations replay to the same result. <!--stat:tests_passed-->240<!--/stat--> automated tests pass, and <!--stat:mutations_caught_text-->10 of 10<!--/stat--> deliberate mutations of the checks (`scripts/mutations.py`) are caught by at least one test. CI runs the install, the tests and the eval on Linux, macOS and Windows.
+See `eval/results.md` and `docs/stats.json` (both generated; `python scripts/stats.py` refreshes the numbers on this page). On <!--stat:eval_cases-->34<!--/stat--> author-written cases across both plants, the graph check gives the expected verdict, assessment status and finding codes in <!--stat:eval_matched-->34<!--/stat-->. <!--stat:eval_no_verdict-->7<!--/stat--> of those cases expect "cannot say" or an error, and get it. Tag matching stops <!--stat:tag_matching_stopped-->8 of 15<!--/stat--> risky permit requests; it cannot assess a plain state change at all. An independent breadth-first walk (`eval/oracle.py`), written from the spec rather than from the Cypher, agrees with the graph on every hazard set in <!--stat:oracle_agreed-->34<!--/stat--> cases and on <!--stat:random_plants-->120<!--/stat--> random plants in the tests. <!--stat:replay_same-->34<!--/stat--> recorded evaluations replay to the same result. <!--stat:tests_passed-->250<!--/stat--> automated tests pass, and <!--stat:mutations_caught_text-->11 of 11<!--/stat--> deliberate mutations of the checks (`scripts/mutations.py`) are caught by at least one test. CI runs the install, the tests and the eval on Linux, macOS and Windows.
 
 These cases show what the checks do. They were written by the author, and they are not evidence of field performance.
 
@@ -200,7 +202,8 @@ Commercial control-of-work products manage permits and isolations together, incl
 - Each component has a `service` (process gas, condensate, fuel gas, nitrogen, instrument air and so on), and each plant declares the tie-ins where one service may legitimately enter another (`tie_ins` in the plant file). "Also reached from" lists only sources in the target's service or a declared tie-in; the others are counted, shown with `--json`, and still count towards the verdict. Instrument air and fire water have no connection to process piping.
 - Only the final state is checked. Multi-step procedures are not modelled.
 - Electrical isolation is out of scope.
-- Observation staleness is measured against the store's `as_of` time (the time of the shift picture), or `--at`. The committed stores are fixed at their scenario time so results are reproducible.
+- Every store has a mode. A **snapshot** (what `build` makes, and what is committed here) is assessed at its `as_of`, the time of the picture, so it gives the same answer on any day. A **live** store (`shift start`) is assessed at the current time. `--at` overrides either. Every result prints the assessment time and the mode.
+- The staleness threshold is 12 hours by default (one shift): an observation older than that, measured back from the assessment time, is unconfirmed and can give INCOMPLETE but never CLEAR. Set it per scenario with `max_observation_age_hours`, or per live store with `shift start --max-age-hours`. `freshness` lists what has gone stale.
 
 See `docs/SPEC.md` for the full list.
 

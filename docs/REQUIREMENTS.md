@@ -3,8 +3,8 @@
 Status basis: 16 Nov 2026. Verified by a fresh `git clone`:
 - Windows 11, Python 3.12, new virtual environment: `pip install -e .` and the
   README's check command gave BLOCK (exit 2).
-- Current numbers, measured by `scripts/stats.py` and checked by a test: <!--stat:tests_passed-->240<!--/stat--> tests pass,
-  `eval/compare.py` matches <!--stat:eval_matched-->34<!--/stat--> of <!--stat:eval_cases-->34<!--/stat--> cases, and <!--stat:mutations_caught_text-->10 of 10<!--/stat--> mutations are caught.
+- Current numbers, measured by `scripts/stats.py` and checked by a test: <!--stat:tests_passed-->250<!--/stat--> tests pass,
+  `eval/compare.py` matches <!--stat:eval_matched-->34<!--/stat--> of <!--stat:eval_cases-->34<!--/stat--> cases, and <!--stat:mutations_caught_text-->11 of 11<!--/stat--> mutations are caught.
 - GitHub Actions (`.github/workflows/ci.yml`) installs with `pip install .`, runs the tests and
   the eval on ubuntu-latest, macos-latest and windows-latest with Python 3.12, and fails if
   the committed stores or eval results change. All three passed (run 43852804742, 16 Nov).

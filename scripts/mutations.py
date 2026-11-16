@@ -74,6 +74,11 @@ MUTATIONS: dict[str, list[tuple[str, str, str]]] = {
     "M10 observation accepted without an observer": [
         ("src/blindflange/validate.py", "    if not _text(by):\n", "    if False:\n"),
     ],
+    "M11 live store assessed at its as_of, not now": [
+        ("src/blindflange/store.py",
+         '    return now() if store_info.get("mode") == "live" else store_info["as_of"]',
+         '    return store_info["as_of"]'),
+    ],
 }
 
 IGNORE = shutil.ignore_patterns(".git", ".venv", "build", "dist", "*.egg-info", "__pycache__", ".pytest_cache",
@@ -103,13 +108,22 @@ def run_one(name: str, edits, python: str = sys.executable) -> dict:
             p.write_text(text.replace(old, new), encoding="utf-8", newline="\n")
         pkg = _layout(copy)
         env = dict(os.environ, PYTHONPATH=str(pkg), PYTHONDONTWRITEBYTECODE="1")
-        r = subprocess.run([python, "-m", "pytest", "-x", "-q", "-p", "no:cacheprovider"], cwd=copy, env=env,
-                           capture_output=True, text=True)
+        # The published-numbers test is about docs/stats.json, not about the code; a stale
+        # stats file in the copy would make every mutation look caught, so it is left out.
+        r = subprocess.run([python, "-m", "pytest", "-x", "-q", "-p", "no:cacheprovider", "--deselect", SELF_TEST],
+                           cwd=copy, env=env, capture_output=True, text=True)
         first = re.findall(r"^FAILED (\S+)", r.stdout, re.M)
         return {"name": name, "caught": r.returncode != 0, "first_failure": first[0] if first else None}
 
 
+SELF_TEST = "tests/test_docs.py::test_published_numbers_match_the_measured_ones"
+
+
 def run_all(python: str = sys.executable) -> list[dict]:
+    control = run_one("control (no mutation)", [], python)
+    if control["caught"]:
+        raise SystemExit(f"the unmutated copy fails ({control['first_failure']}); mutation results would be "
+                         f"meaningless. Fix that first.")
     return [run_one(name, edits, python) for name, edits in MUTATIONS.items()]
 
 

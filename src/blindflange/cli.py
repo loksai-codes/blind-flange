@@ -124,7 +124,7 @@ def cmd_reach(a) -> int:
     try:
         store.component(conn, a.tag)
         info = store.info(conn)
-        at = store.timestamp(a.at) if a.at else info["as_of"]
+        at = store.assessment_time(info, a.at)
         stale_before = store.hours_before(at, info["max_age_hours"])
         problems = validate.changes(hypothetical, store.kinds_for(conn, [h["tag"] for h in hypothetical])) \
             if hypothetical else []
@@ -155,8 +155,7 @@ def cmd_handover(a) -> int:
         info = store.info(conn)
         permits = store.rows(conn, store.query("handover"))
         off = store.run(conn, "not_normal")
-        stale_before = store.hours_before(info["as_of"], info["max_age_hours"])
-        unconfirmed = store.run(conn, "uncertain", stale_before=stale_before)
+        unconfirmed = store.run(conn, "uncertain", stale_before=store.stale_before(info))
     finally:
         conn.close()
     with store.scratch_copy(a.store) as conn:  # the survey writes inside a rolled-back transaction
@@ -165,7 +164,8 @@ def cmd_handover(a) -> int:
         print(json.dumps({"store": info, "permits": permits, "not_normal": off, "unconfirmed": unconfirmed,
                           "survey": survey.to_dict()}, indent=2))
         return 0
-    print(f"SHIFT HANDOVER  {a.store}  (picture as of {info['as_of']}, revision {info['revision']})")
+    print(f"SHIFT HANDOVER  {a.store}  ({info['mode']} store, assessed at {store.assessment_time(info)}, "
+          f"revision {info['revision']})")
     print(f"\nActive permits ({len(permits)})")
     for p in permits:
         print(f"  {p['permit']}  {p['title']}")
@@ -185,6 +185,34 @@ def cmd_handover(a) -> int:
     for reason in survey.incomplete_reasons:
         if "search stopped" in reason:
             print(f"  Incomplete: {reason}.")
+    return 0
+
+
+def cmd_shift_start(a) -> int:
+    info = store.shift_start(a.source, a.out, a.as_of, a.max_age_hours)
+    print(f"Started a live store {a.out} from {a.source}: assessed at the current time from now on, "
+          f"shift start {info['as_of']}, observations older than {info['max_age_hours']} h count as stale.")
+    return 0
+
+
+def cmd_freshness(a) -> int:
+    conn = store.connect(a.store, read_only=True)
+    try:
+        info = store.info(conn)
+        at = store.assessment_time(info, a.at)
+        old = store.stale_observations(conn, a.at)
+    finally:
+        conn.close()
+    if a.json:
+        print(json.dumps({"assessed_at": at, "mode": info["mode"], "max_age_hours": info["max_age_hours"],
+                          "stale": old}, indent=2))
+        return 0
+    print(f"{a.store}: {info['mode']} store, assessed at {at}, threshold {info['max_age_hours']:g} h "
+          f"(observed before {store.hours_before(at, info['max_age_hours'])} is stale)")
+    if not old:
+        print("  Every observation is within the threshold.")
+    for o in old:
+        print(f"  {o['tag']:<10} {o['state']:<13} observed {o['observed_at']} by {o['observed_by'] or '?'}")
     return 0
 
 
@@ -370,7 +398,7 @@ def main(argv=None) -> int:
         p.add_argument("--store", required=True, help="the .rl store")
         p.add_argument("--json", action="store_true", help="machine-readable output")
         p.add_argument("--max-hops", type=_hops, default=None, help="search bound (default 100)")
-        p.add_argument("--at", help="assess as of this time (default: the store's as_of)")
+        p.add_argument("--at", help="assess as of this time (default: now for a live store, as_of for a snapshot)")
         if revision:
             p.add_argument("--revision", type=int, help="refuse if the store is no longer at this revision")
 
@@ -414,6 +442,18 @@ def main(argv=None) -> int:
     p = add("handover", cmd_handover, "print the shift handover summary")
     p.add_argument("--store", required=True)
     p.add_argument("--max-hops", type=_hops, default=None)
+    p.add_argument("--json", action="store_true")
+
+    p = add("shift", cmd_shift_start, "start a live store for a shift (assessed at the current time)")
+    p.add_argument("action", choices=["start"])
+    p.add_argument("--from", dest="source", required=True, help="the store to start from (it is copied)")
+    p.add_argument("-o", "--out", required=True, help="the new live store (.rl)")
+    p.add_argument("--as-of", help="shift start time (default: now)")
+    p.add_argument("--max-age-hours", type=float, help="observations older than this are stale (default: the store's)")
+
+    p = add("freshness", cmd_freshness, "list observations older than the store's threshold")
+    p.add_argument("--store", required=True)
+    p.add_argument("--at", help="assess as of this time (default: now for a live store, as_of for a snapshot)")
     p.add_argument("--json", action="store_true")
 
     p = add("find", cmd_find, "find equipment tags from free text")

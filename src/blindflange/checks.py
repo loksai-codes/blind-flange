@@ -88,6 +88,7 @@ class Result:
     hypothetical: list[dict] = field(default_factory=list)
     revision: int | None = None
     assessed_at: str | None = None
+    mode: str | None = None             # snapshot (assessed at the store's as_of) or live (assessed now)
     max_hops: int | None = None
     error: str | None = None
     evaluation_id: str | None = None
@@ -198,7 +199,7 @@ def assess(conn, req: dict, hypothetical: list[dict] | tuple = (), max_hops: int
     Raises ValidationError for unusable input; `evaluate` turns that into an ERROR result.
     """
     info = store.info(conn)
-    at = store.timestamp(at) if at else info["as_of"]
+    at = store.assessment_time(info, at)
     stale_before = store.hours_before(at, info["max_age_hours"])
     hops = store.DEFAULT_MAX_HOPS if max_hops is None else max_hops
     if validate.max_hops(hops):
@@ -314,7 +315,7 @@ def assess(conn, req: dict, hypothetical: list[dict] | tuple = (), max_hops: int
     else:
         verdict = CLEAR
     return Result(_describe(req), INCOMPLETE if incomplete else COMPLETE, verdict, found, hazards, reasons,
-                  disclosed, shared, hypothetical, info["revision"], at, hops)
+                  disclosed, shared, hypothetical, info["revision"], at, info["mode"], hops)
 
 
 def evaluate(conn, req: dict, hypothetical=(), max_hops: int | None = None, at: str | None = None,
@@ -326,15 +327,17 @@ def evaluate(conn, req: dict, hypothetical=(), max_hops: int | None = None, at: 
         info = store.info(conn)
         result = Result(_describe(req), ERROR, None, error="; ".join(e.problems),
                         hypothetical=list(hypothetical), revision=info["revision"],
-                        assessed_at=at or info["as_of"], max_hops=max_hops)
+                        assessed_at=store.assessment_time(info, at), mode=info["mode"], max_hops=max_hops)
     except store.StaleRevisionError:
         raise
     except store.StoreError as e:
         info = store.info(conn)
         result = Result(_describe(req), ERROR, None, error=str(e), hypothetical=list(hypothetical),
-                        revision=info["revision"], assessed_at=at or info["as_of"], max_hops=max_hops)
+                        revision=info["revision"], assessed_at=store.assessment_time(info, at), mode=info["mode"],
+                        max_hops=max_hops)
     if record:
-        stored_req = dict(req, hypothetical=list(hypothetical), max_hops=max_hops, at=at)
+        # Record the resolved assessment time, so a live evaluation replays at the time it was made.
+        stored_req = dict(req, hypothetical=list(hypothetical), max_hops=max_hops, at=result.assessed_at or at)
         result.evaluation_id = store.record_evaluation(conn, kind, stored_req, _for_record(result),
                                                        store.snapshot(conn))
     return result

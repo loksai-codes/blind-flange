@@ -1,6 +1,6 @@
 {
-  "tests_passed": 240,
-  "tests_total": 240,
+  "tests_passed": 250,
+  "tests_total": 250,
   "tests_failed": 0,
   "random_plants": 120,
   "eval_cases": 34,
@@ -10,13 +10,13 @@
   "tag_matching_stopped": "8 of 15",
   "oracle_agreed": 34,
   "replay_same": 34,
-  "mutations_total": 10,
-  "mutations_caught": 10,
+  "mutations_total": 11,
+  "mutations_caught": 11,
   "mutations": [
     {
       "name": "M1 unknown state treated as closed",
       "caught": true,
-      "first_failure": "tests/test_docs.py::test_published_numbers_match_the_measured_ones"
+      "first_failure": "tests/test_oracle.py::test_graph_matches_the_oracle_on_random_plants[0]"
     },
     {
       "name": "M2 search-bound check removed",
@@ -51,7 +51,7 @@
     {
       "name": "M8 replay always reports a match",
       "caught": true,
-      "first_failure": "tests/test_docs.py::test_published_numbers_match_the_measured_ones"
+      "first_failure": "tests/test_store.py::test_replay_detects_a_tampered_record"
     },
     {
       "name": "M9 shared worksite not detected",
@@ -61,8 +61,13 @@
     {
       "name": "M10 observation accepted without an observer",
       "caught": true,
-      "first_failure": "tests/test_docs.py::test_published_numbers_match_the_measured_ones"
+      "first_failure": "tests/test_validate.py::test_an_observation_needs_an_observer[]"
+    },
+    {
+      "name": "M11 live store assessed at its as_of, not now",
+      "caught": true,
+      "first_failure": "tests/test_live.py::test_live_store_ages_observations_as_the_shift_goes_on"
     }
   ],
-  "mutations_caught_text": "10 of 10"
+  "mutations_caught_text": "11 of 11"
 }

@@ -14,6 +14,8 @@ def result_text(r: checks.Result) -> str:
     out.append(f"  assessment_status: {r.assessment_status}    conflict_verdict: {r.conflict_verdict or 'none'}"
                + (f"    revision {r.revision}" if r.revision is not None else "")
                + (f"    {r.evaluation_id}" if r.evaluation_id else ""))
+    if r.assessed_at:
+        out.append(f"  assessed at {r.assessed_at} ({r.mode or 'snapshot'} store)")
     if r.hypothetical:
         out.append("  What-if: " + ", ".join(f"{h['tag']}={h['to']}" for h in r.hypothetical)
                    + " (not applied to the store)")

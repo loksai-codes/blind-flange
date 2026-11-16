@@ -5,13 +5,27 @@
 
 // :store_create
 // tie_ins: declared service tie-ins as 'from>to' text, e.g. 'nitrogen>process_gas'.
-CREATE (s:Store {id: 'store', revision: $revision, eval_seq: 0, as_of: $as_of,
+// mode: 'snapshot' (assessed at as_of, the time of the picture) or 'live' (assessed now).
+CREATE (s:Store {id: 'store', revision: $revision, eval_seq: 0, as_of: $as_of, mode: $mode,
                  max_age_hours: $max_age_hours, plant: $plant, built_at: $as_of, tie_ins: $tie_ins})
 
 // :store_info
 MATCH (s:Store)
 RETURN s.revision AS revision, s.as_of AS as_of, s.max_age_hours AS max_age_hours,
-       s.plant AS plant, s.eval_seq AS eval_seq, coalesce(s.tie_ins, []) AS tie_ins
+       s.plant AS plant, s.eval_seq AS eval_seq, coalesce(s.tie_ins, []) AS tie_ins,
+       coalesce(s.mode, 'snapshot') AS mode
+
+// :store_go_live
+// Start a shift: from now on the store is assessed at the current time.
+MATCH (s:Store)
+SET s.mode = 'live', s.as_of = $as_of, s.max_age_hours = coalesce($max_age_hours, s.max_age_hours)
+
+// :stale
+MATCH (c:Component)
+WHERE c.observed_at IS NOT NULL AND c.observed_at < $stale_before
+RETURN c.tag AS tag, c.kind AS kind, coalesce(c.state, 'unknown') AS state,
+       c.observed_at AS observed_at, c.observed_by AS observed_by
+ORDER BY c.observed_at, c.tag
 
 // :store_bump
 MATCH (s:Store) SET s.revision = s.revision + 1 RETURN s.revision AS revision

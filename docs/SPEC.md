@@ -55,6 +55,21 @@ and `src/blindflange/model.py`. Change them together.
 A blind is `installed` or `not_installed`. `removed` is rejected for a blind,
 because it could mean the blind or the spool it closes.
 
+### Assessment time and store mode
+Every assessment has a time. It is `--at` if given; otherwise it depends on the
+store's mode:
+
+| Mode | Made by | Assessed at |
+| --- | --- | --- |
+| snapshot | `build` (the committed stores) | the store's `as_of`, the time of the picture, so the answer never depends on today's date |
+| live | `shift start --from <store> -o <live.rl>` | the current time |
+
+An observation is stale when `observed_at` is older than the assessment time
+minus `max_age_hours` (default 12, one shift; set by the scenario's
+`max_observation_age_hours` or `shift start --max-age-hours`). `freshness` lists
+stale observations. The resolved assessment time is recorded in each Evaluation,
+so a live evaluation replays at the time it was made.
+
 ### Live sources
 A component is a live source if `pressure_source = true` and `state = 'in_service'`,
 or if the request being assessed energises it. Setting a pressure source to

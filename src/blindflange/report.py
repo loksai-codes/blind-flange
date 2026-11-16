@@ -203,7 +203,7 @@ def evaluation_html(e: dict) -> str:
     parts.append(f"<h1><span class='verdict {_e(verdict)}'>{_e(verdict)}</span> {_e(title)}</h1>")
     parts.append(f"<p class='meta'>assessment_status <b>{_e(result.get('assessment_status'))}</b> · "
                  f"conflict_verdict <b>{_e(result.get('conflict_verdict') or 'none')}</b> · "
-                 f"assessed as of {_e(result.get('assessed_at'))} · search bound {_e(result.get('max_hops'))} hops"
+                 f"assessed at {_e(result.get('assessed_at'))} ({_e(result.get('mode') or 'snapshot')} store) · search bound {_e(result.get('max_hops'))} hops"
                  + (" · what-if: " + _e(", ".join(f"{h['tag']}={h['to']}" for h in req.get('hypothetical', [])))
                     if req.get("hypothetical") else "") + "</p>")
     if result.get("error"):

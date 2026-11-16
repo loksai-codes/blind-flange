@@ -109,8 +109,7 @@ def call(store_path: str, name: str, args: dict) -> dict:
         try:
             store.component(conn, args.get("tag", ""))
             info = store.info(conn)
-            got = store.rows(conn, store.query("reach"), tag=args["tag"],
-                             stale_before=store.hours_before(info["as_of"], info["max_age_hours"]))
+            got = store.rows(conn, store.query("reach"), tag=args["tag"], stale_before=store.stale_before(info))
         finally:
             conn.close()
         return {"tag": args["tag"], "reaches": got}
@@ -120,8 +119,7 @@ def call(store_path: str, name: str, args: dict) -> dict:
             info = store.info(conn)
             permits = store.rows(conn, store.query("handover"))
             off = store.run(conn, "not_normal")
-            unconfirmed = store.run(conn, "uncertain",
-                                    stale_before=store.hours_before(info["as_of"], info["max_age_hours"]))
+            unconfirmed = store.run(conn, "uncertain", stale_before=store.stale_before(info))
         finally:
             conn.close()
         with store.scratch_copy(store_path) as conn:
