@@ -10,13 +10,19 @@ import yaml
 
 comps: list[dict] = []
 conns: list[list[str]] = []
+SERVICE = ["process_gas"]                  # the service of the section being written
 
 
-def c(tag, kind, name, state, normal=None, **kw):
+def section(service):
+    SERVICE[0] = service
+
+
+def c(tag, kind, name, state, normal=None, service=None, **kw):
     d = {"tag": tag, "kind": kind, "name": name, "state": state}
     if normal and normal != state:
         d["normal"] = normal
     d.update(kw)
+    d["service"] = service or SERVICE[0]
     comps.append(d)
     return tag
 
@@ -27,6 +33,7 @@ def link(*tags):
 
 
 # ---------------------------------------------------------------- inlet and separation
+section("process_gas")
 c("WH-MAN", "header", "Wellhead production manifold", "in_service", pressure_source=True)
 c("L-100", "line", "Inlet flowline", "in_service")
 c("SDV-100", "valve", "Inlet shutdown valve", "open")
@@ -38,25 +45,27 @@ c("L-110G", "line", "HP separator gas outlet", "in_service")
 c("SDV-110", "valve", "Compressor suction shutdown valve", "closed", normal="open")
 c("L-SUCT", "line", "Compressor suction header", "in_service")
 link("V-110", "L-110G", "SDV-110", "L-SUCT")
-c("L-110L", "line", "HP separator liquid outlet", "in_service")
-c("LV-110", "control_valve", "HP separator level valve", "open")
+c("L-110L", "line", "HP separator liquid outlet", "in_service", service="condensate")
+c("LV-110", "control_valve", "HP separator level valve", "open", service="condensate")
 c("V-120", "vessel", "LP separator", "in_service", pressure_source=True)
 link("V-110", "L-110L", "LV-110", "V-120")
 c("L-120G", "line", "LP separator gas outlet", "in_service")
 c("PCV-120", "control_valve", "Fuel gas pressure control valve", "open")
-c("L-FG", "line", "Fuel gas header", "in_service")
+c("L-FG", "line", "Fuel gas header", "in_service", service="fuel_gas")
 link("V-120", "L-120G", "PCV-120", "L-FG")
 
 # ---------------------------------------------------------------- flare and closed drain
+section("flare")
 c("L-FLR", "line", "HP flare header", "in_service")
 c("V-FLR", "vessel", "Flare knock-out drum", "in_service")
 c("L-FLS", "line", "Flare stack line", "in_service")
 link("L-FLR", "V-FLR", "L-FLS")
-c("L-DRN", "line", "Closed drain header", "in_service")
-c("V-DRN", "vessel", "Closed drain drum", "in_service")
+c("L-DRN", "line", "Closed drain header", "in_service", service="drain")
+c("V-DRN", "vessel", "Closed drain drum", "in_service", service="drain")
 link("L-DRN", "V-DRN")
 
 # ---------------------------------------------------------------- compression: trains A, B, C
+section("process_gas")
 TRAINS = {
     # train: (number, suction valve, suction bypass, seal gas, recycle, discharge valve, compressor, relief)
     "A": dict(n=21, status="standby"),
@@ -81,7 +90,8 @@ for train, t in TRAINS.items():
     c(k, "compressor", f"Train {train} gas compressor", "shutdown", normal="in_service", pressure_source=True)
     c(f"L-{n}0D", "line", f"Train {train} compressor discharge", "in_service")
     link(f"V-{n}0", f"L-{n}0S", k, f"L-{n}0D")
-    c(f"XV-{n}5", "valve", f"Train {train} seal gas supply valve", "closed" if maint else "open")
+    c(f"XV-{n}5", "valve", f"Train {train} seal gas supply valve", "closed" if maint else "open",
+      service="fuel_gas")
     link("L-FG", f"XV-{n}5", k)
     c(f"FV-{n}2", "control_valve", f"Train {train} anti-surge recycle valve", "closed", normal="open")
     link(f"L-{n}0D", f"FV-{n}2", f"L-{n}1")
@@ -124,12 +134,12 @@ c("BV-300", "valve", "Dry gas filter bypass valve", "open", normal="closed")
 link("L-300", "BV-300", "L-301")
 c("DR-300", "valve", "Dry gas filter drain valve", "closed")
 link("F-300", "DR-300", "L-DRN")
-c("C-310", "vessel", "Glycol regenerator", "in_service")
-c("L-310", "line", "Rich glycol line", "in_service")
-c("LV-310", "control_valve", "Contactor glycol level valve", "open")
+c("C-310", "vessel", "Glycol regenerator", "in_service", service="glycol")
+c("L-310", "line", "Rich glycol line", "in_service", service="glycol")
+c("LV-310", "control_valve", "Contactor glycol level valve", "open", service="glycol")
 link("C-300", "L-310", "LV-310", "C-310")
-c("P-310", "pump", "Lean glycol pump", "in_service", pressure_source=True)
-c("L-311", "line", "Lean glycol line", "in_service")
+c("P-310", "pump", "Lean glycol pump", "in_service", pressure_source=True, service="glycol")
+c("L-311", "line", "Lean glycol line", "in_service", service="glycol")
 link("C-310", "P-310", "L-311", "C-300")
 
 # ---------------------------------------------------------------- export gas and pig launcher
@@ -148,6 +158,7 @@ link("L-MTR", "XV-502", "PL-500")
 link("PL-500", "VNT-500", "L-FLR")
 
 # ---------------------------------------------------------------- condensate stabilisation and export
+section("condensate")
 c("L-120L", "line", "LP separator liquid outlet", "in_service")
 c("XV-400", "valve", "Stabiliser feed valve", "open")
 c("C-400", "vessel", "Condensate stabiliser", "in_service", pressure_source=True)
@@ -175,10 +186,13 @@ c("XV-420", "valve", "Condensate export valve", "open")
 c("L-CEX", "line", "Condensate export line", "in_service")
 c("FQ-420", "line", "Condensate metering skid", "in_service")
 c("XV-421", "valve", "Main oil line tie-in valve", "open")
-c("MOL", "header", "Main oil line", "in_service", pressure_source=True)
+c("MOL", "header", "Main oil line", "in_service", pressure_source=True, service="oil")
 link("L-CD", "XV-420", "L-CEX", "FQ-420", "XV-421", "MOL")
 
 # ---------------------------------------------------------------- utilities
+# Utilities are separate services. Nitrogen has two deliberate purge tie-ins into
+# process gas. Instrument air and fire water have no connection to process piping.
+section("nitrogen")
 c("N2-HDR", "header", "Nitrogen header", "in_service", pressure_source=True)
 c("XV-610", "valve", "Train C nitrogen purge valve", "closed")
 c("L-N2-610", "line", "Train C nitrogen purge spool", "in_service")
@@ -186,9 +200,11 @@ c("XV-611", "valve", "Train C nitrogen purge inlet valve", "closed")
 link("N2-HDR", "XV-610", "L-N2-610", "XV-611", "V-230")
 c("XV-620", "valve", "Pig launcher nitrogen purge valve", "closed")
 link("N2-HDR", "XV-620", "PL-500")
+section("instrument_air")
 c("IA-HDR", "header", "Instrument air header", "in_service", pressure_source=True)
-c("XV-630", "valve", "Instrument air to glycol regenerator", "open")
-link("IA-HDR", "XV-630", "C-310")
+c("L-IA", "line", "Instrument air distribution to valve actuators", "in_service")
+link("IA-HDR", "L-IA")
+section("fire_water")
 c("FW-HDR", "header", "Fire water ring main", "in_service", pressure_source=True)
 c("XV-640", "valve", "Fire water to stabiliser deluge", "closed")
 c("L-640", "line", "Stabiliser deluge line", "in_service")
@@ -200,6 +216,19 @@ plant = {
                     "dehydration, export gas with a pig launcher, condensate stabilisation and export, "
                     "flare, closed drain and utilities. Not a drawing of any real plant."),
     "components": comps,
+    # Services a connection may cross on purpose, as [from, to]: pressure from the first
+    # may legitimately enter the second. Decides which sources are worth listing; every
+    # connection still carries pressure either way.
+    "tie_ins": [
+        ["process_gas", "condensate"],   # separator liquid outlets
+        ["process_gas", "fuel_gas"],     # LP separator gas let down to fuel gas
+        ["fuel_gas", "process_gas"],     # compressor seal gas
+        ["process_gas", "glycol"],       # glycol contactor
+        ["process_gas", "flare"], ["condensate", "flare"],
+        ["process_gas", "drain"], ["condensate", "drain"],
+        ["condensate", "oil"],           # condensate export into the main oil line
+        ["nitrogen", "process_gas"],     # purge connections
+    ],
     "connections": conns,
 }
 header = ("# GENERATED by data/plants/make_gas_plant.py. Edit that script, not this file.\n"

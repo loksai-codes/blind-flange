@@ -4,13 +4,14 @@
 // src/blindflange/store.py. Every value is a parameter.
 
 // :store_create
+// tie_ins: declared service tie-ins as 'from>to' text, e.g. 'nitrogen>process_gas'.
 CREATE (s:Store {id: 'store', revision: $revision, eval_seq: 0, as_of: $as_of,
-                 max_age_hours: $max_age_hours, plant: $plant, built_at: $as_of})
+                 max_age_hours: $max_age_hours, plant: $plant, built_at: $as_of, tie_ins: $tie_ins})
 
 // :store_info
 MATCH (s:Store)
 RETURN s.revision AS revision, s.as_of AS as_of, s.max_age_hours AS max_age_hours,
-       s.plant AS plant, s.eval_seq AS eval_seq
+       s.plant AS plant, s.eval_seq AS eval_seq, coalesce(s.tie_ins, []) AS tie_ins
 
 // :store_bump
 MATCH (s:Store) SET s.revision = s.revision + 1 RETURN s.revision AS revision
@@ -108,7 +109,7 @@ RETURN node.tag AS tag, node.name AS name, score ORDER BY score DESC LIMIT 5
 // :snapshot_components
 MATCH (c:Component)
 RETURN c.tag AS tag, c.kind AS kind, c.name AS name, c.state AS state, c.normal AS normal,
-       c.pressure_source AS pressure_source, c.integrity AS integrity,
+       c.pressure_source AS pressure_source, c.integrity AS integrity, c.service AS service,
        c.observed_at AS observed_at, c.observed_by AS observed_by,
        c.planned_state AS planned_state, c.planned_by AS planned_by, c.planned_at AS planned_at
 ORDER BY tag

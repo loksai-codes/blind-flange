@@ -10,9 +10,9 @@ from datetime import datetime
 
 from .model import INTEGRITY, KINDS, MAX_HOPS_LIMIT, RELATIONS, STATES, UNKNOWN
 
-PLANT_KEYS = {"unit", "description", "components", "connections"}
+PLANT_KEYS = {"unit", "description", "components", "connections", "tie_ins"}
 COMPONENT_KEYS = {"tag", "kind", "name", "state", "normal", "pressure_source", "integrity",
-                  "observed_at", "observed_by"}
+                  "observed_at", "observed_by", "service"}
 SCENARIO_KEYS = {"plant", "description", "as_of", "max_observation_age_hours", "observations", "permits"}
 OBSERVATION_KEYS = {"tag", "state", "observed_at", "observed_by"}
 PERMIT_KEYS = {"id", "title", "kind", "description", "works_on", "relies_on", "energises", "operates"}
@@ -114,6 +114,16 @@ def plant(data) -> list[str]:
             problems.append(f"{where}: 'observed_at' must be a timestamp like 2026-11-15T06:00:00Z")
         if "observed_by" in c and not _text(c["observed_by"]):
             problems.append(f"{where}: 'observed_by' must be text")
+        if "service" in c and not _text(c["service"]):
+            problems.append(f"{where}: 'service' must be text, like process_gas or instrument_air")
+
+    ties = data.get("tie_ins", [])
+    if not isinstance(ties, list):
+        problems.append("'tie_ins' must be a list of [from_service, to_service] pairs")
+    else:
+        for i, t in enumerate(ties, 1):
+            if not (isinstance(t, list) and len(t) == 2 and all(_text(s) for s in t)):
+                problems.append(f"tie_ins {i}: must be a pair of services like [nitrogen, process_gas], got {t!r}")
 
     conns = data.get("connections", [])
     if not isinstance(conns, list):

@@ -83,8 +83,12 @@ Each finding also has an `origin` and a `certainty`, which set its effect:
 | existing | PROVEN | HOLD. The hazard was there before; the request does not remove it. |
 | either | POSSIBLE | UNCONFIRMED. Decides nothing; makes the assessment INCOMPLETE. |
 
-Path findings carry the shortest path as evidence, every source that reaches the
-same target, and the unconfirmed components on the path. One-hop findings carry
+Path findings carry the shortest path as evidence, the sources that reach the
+same target, and the unconfirmed components on the path. Sources are listed only
+if they are in the target's `service` or reach it through a declared tie-in
+(`tie_ins` in the plant file, as [from, to]); the others go in
+`other_service_sources`. This is display only: every source still counts
+towards the verdict, because pressure levels are not modelled. One-hop findings carry
 the graph edges that prove them.
 
 ### How an assessment runs

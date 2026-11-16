@@ -67,7 +67,8 @@ class Finding:
     target: str
     permit: str | None = None           # the other permit involved, if any
     permit_title: str | None = None
-    sources: list[str] = field(default_factory=list)
+    sources: list[str] = field(default_factory=list)       # same service as the target, or a declared tie-in
+    other_service_sources: list[str] = field(default_factory=list)  # also reach it, through no declared tie-in
     path: list[str] = field(default_factory=list)
     uncertain: list[str] = field(default_factory=list)    # unconfirmed components the path passes
     evidence: list[str] = field(default_factory=list)     # graph edges, for one-hop findings
@@ -240,6 +241,10 @@ def assess(conn, req: dict, hypothetical: list[dict] | tuple = (), max_hops: int
 
     # Sort every pressure exposure after the change by certainty and origin, then
     # group by (permit, target, code) so each hazard is one finding with all its sources.
+    # Sources are listed only if they share the target's service or reach it through a
+    # declared tie-in; the rest are kept apart (pressure levels are not modelled, so a
+    # utility header "reaching" a process line backwards is not worth showing).
+    tie_ins = set(info.get("tie_ins") or [])
     groups: dict[tuple, dict] = {}
     for key, row in after_possible.items():
         if key in after_proven:
@@ -254,8 +259,10 @@ def assess(conn, req: dict, hypothetical: list[dict] | tuple = (), max_hops: int
         if origin == INTRODUCED and (other, row["target"]) in direct_keys:
             continue                                   # already reported with its one-hop evidence
         g = groups.setdefault((code, row["target"], other, origin, certainty),
-                              {"row": row, "sources": []})
-        g["sources"].append(row["source"])
+                              {"row": row, "sources": [], "other": []})
+        tied = (row["source_service"] == row["target_service"]
+                or f"{row['source_service']}>{row['target_service']}" in tie_ins)
+        g["sources" if tied else "other"].append(row["source"])
         if row["hops"] < g["row"]["hops"]:
             g["row"] = row
     for (code, target, other, origin, certainty), g in groups.items():
@@ -267,7 +274,9 @@ def assess(conn, req: dict, hypothetical: list[dict] | tuple = (), max_hops: int
         else:
             sev = SEVERITY[code]
         found.append(Finding(code, sev, origin, certainty, target, other, row["title"] if other else None,
-                             sources=sorted(set(g["sources"])), path=row["path"], uncertain=row["uncertain"],
+                             sources=sorted(set(g["sources"])),
+                             other_service_sources=sorted(set(g["other"]) - set(g["sources"])),
+                             path=row["path"], uncertain=row["uncertain"],
                              message=_message(code, target, other, certainty, origin)))
 
     order = {BLOCK: 0, HOLD: 1, UNCONFIRMED: 2}

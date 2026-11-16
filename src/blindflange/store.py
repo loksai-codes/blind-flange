@@ -306,6 +306,7 @@ def _component_rows(components: list[dict], as_of: str) -> list[dict]:
             "tag": c["tag"], "kind": c["kind"], "name": c.get("name") or c["tag"],
             "state": c.get("state"), "normal": c.get("normal", c.get("state")),
             "pressure_source": bool(c.get("pressure_source", False)), "integrity": c.get("integrity"),
+            "service": c.get("service") or "process",
             "observed_at": timestamp(c["observed_at"]) if c.get("observed_at") else (as_of if has_state else None),
             "observed_by": c.get("observed_by") or ("scenario" if has_state else None),
             "planned_state": c.get("planned_state"), "planned_by": c.get("planned_by"),
@@ -316,9 +317,10 @@ def _component_rows(components: list[dict], as_of: str) -> list[dict]:
 
 
 def _load(conn, components: list[dict], connections: list, as_of: str, max_age_hours: float, plant: str,
-          revision: int = 1) -> None:
+          revision: int = 1, tie_ins: list | None = None) -> None:
     init_schema(conn)
-    run(conn, "store_create", as_of=as_of, max_age_hours=max_age_hours, plant=plant, revision=revision)
+    run(conn, "store_create", as_of=as_of, max_age_hours=max_age_hours, plant=plant, revision=revision,
+        tie_ins=[f"{a}>{b}" for a, b in (tie_ins or [])])
     comp_rows = _component_rows(components, as_of)
     for label in LABELS:
         run(conn, f"load_{label.lower()}", rows=comp_rows)
@@ -334,7 +336,8 @@ def _fill(conn, scenario: dict, plant: dict, plant_name: str) -> None:
         c["observed_at"] = o.get("observed_at", as_of)
         c["observed_by"] = o.get("observed_by", "scenario")
     _load(conn, list(comps.values()), plant.get("connections", []), as_of,
-          scenario.get("max_observation_age_hours", DEFAULT_MAX_AGE_HOURS), plant_name)
+          scenario.get("max_observation_age_hours", DEFAULT_MAX_AGE_HOURS), plant_name,
+          tie_ins=plant.get("tie_ins", []))
     for permit in scenario.get("permits", []):
         stamp = timestamp(permit.get("approved_at", as_of))
         with transaction(conn, commit=True):
@@ -386,7 +389,7 @@ def snapshot(conn) -> dict:
         comps.append({k: v for k, v in c.items() if v is not None})
     return {
         "store": {"revision": s["revision"], "as_of": s["as_of"], "max_age_hours": s["max_age_hours"],
-                  "plant": s["plant"]},
+                  "plant": s["plant"], "tie_ins": [t.split(">", 1) for t in s["tie_ins"]]},
         "components": comps,
         "connections": [[r["a"], r["b"]] for r in run(conn, "snapshot_connections")],
         "permits": [{k: v for k, v in p.items() if v not in (None, [])} for p in run(conn, "snapshot_permits")],
@@ -398,7 +401,7 @@ def from_snapshot(snap: dict):
     conn = connect(MEMORY)
     st = snap["store"]
     _load(conn, snap["components"], snap["connections"], st["as_of"], st["max_age_hours"], st["plant"],
-          revision=st["revision"])
+          revision=st["revision"], tie_ins=st.get("tie_ins", []))
     for p in snap["permits"]:
         with transaction(conn, commit=True):
             write_permit(conn, p, status="active", approved_at=p.get("approved_at"), in_scenario=True,

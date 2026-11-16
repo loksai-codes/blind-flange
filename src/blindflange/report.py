@@ -229,6 +229,9 @@ def evaluation_html(e: dict) -> str:
             others = [s for s in f.get("sources", []) if s != f["path"][0]]
             if others:
                 parts.append(f"<p class='note'>Also reached from: {_e(', '.join(others))}</p>")
+            if f.get("other_service_sources"):
+                parts.append(f"<p class='note'>Not listed as sources: {_e(', '.join(f['other_service_sources']))} "
+                             f"(other services, no declared tie-in; pressure levels are not modelled).</p>")
         for ev in f.get("evidence", []):
             parts.append(f"<p class='note'>Evidence: <span class='tag'>{_e(ev)}</span></p>")
         parts.append("</div>")

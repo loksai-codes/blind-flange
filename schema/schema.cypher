@@ -14,6 +14,7 @@
 //   normal           the state the item has in normal operation
 //   pressure_source  true if the item holds or generates pressure when in_service
 //   integrity        Blind only: rated | temporary (not pressure-tested)
+//   service          process_gas, condensate, fuel_gas, nitrogen, instrument_air, ... (default "process")
 //   observed_at      when the state was last confirmed (ISO-8601 UTC text)
 //   observed_by      who or what confirmed it: an operator, or "scenario"
 //   planned_state    the state an approved permit will put it in; not yet observed
@@ -38,7 +39,8 @@
 //
 // (:Store)       one per file: revision (bumped by every committed change to plant
 //                state or permits), as_of (time of the shift picture),
-//                max_age_hours (older observations are stale), eval_seq, plant
+//                max_age_hours (older observations are stale), eval_seq, plant,
+//                tie_ins ('from>to' services a connection may cross on purpose)
 // (:Evaluation)  one per assessment, kept for audit and replay:
 //                id, at, revision, kind, request_id, assessment_status, conflict_verdict,
 //                request, result, snapshot (JSON text: every input needed to replay it)

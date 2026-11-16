@@ -37,6 +37,10 @@ def result_text(r: checks.Result) -> str:
             if others:
                 more = f" and {len(others) - 3} more" if len(others) > 3 else ""
                 out.append(f"     Also reached from: {', '.join(others[:3])}{more}")
+            if f.other_service_sources:
+                n = len(f.other_service_sources)
+                out.append(f"     Not listed: {n} source{'s' if n != 1 else ''} in other services with no "
+                           f"declared tie-in (--json shows them)")
         for e in f.evidence:
             out.append(f"     Evidence: {e}")
         if f.uncertain:

@@ -16,7 +16,8 @@ BLOCK      PTW-0511  Reinstate and start condensate pump A
      Pressure would reach BF-504, a temporary barrier that PTW-0504 relies on. It has not been pressure-tested.
      Other permit: PTW-0504  PSV-504 recertification (relief valve removed to workshop)
      Path (4 hops): P-A -> L-PD-A -> RLV-504 -> L-RL-504 -> BF-504
-     Also reached from: JT-DRUM, MOL, P-B
+     Also reached from: JT-DRUM, P-B
+     Not listed: 1 source in other services with no declared tie-in (--json shows them)
 
   Tag matching alone: no shared tags with any active permit, so it would pass.
 ```
@@ -166,7 +167,7 @@ For development, inside the virtual environment:
 | Path | Contents |
 | --- | --- |
 | `stores/condensate_unit.rl` | The headline store: 35 components, 37 connections, 2 active permits. |
-| `stores/gas_plant.rl` | The larger store: 151 components, 185 connections, 5 active permits. |
+| `stores/gas_plant.rl` | The larger store: 151 components, 184 connections, 5 active permits. |
 | `schema/schema.cypher` | Graph model and data dictionary. |
 | `queries/` | Every check as a standalone Cypher file; `store.cypher` holds the named plumbing statements. |
 | `data/plants/`, `data/scenarios/`, `data/permits/` | The YAML the stores are built from. `make_gas_plant.py` generates the gas plant. |
@@ -195,7 +196,8 @@ Commercial control-of-work products manage permits and isolations together, incl
 
 ## Limits
 
-- Pressure is modelled as reachability only: no flow direction, pressure levels, fluids or check-valve behaviour. That is why a finding can list several sources, some of them reached backwards through a pump.
+- Pressure levels are not modelled. Pressure is reachability only: no flow direction, pressure levels, fluids or check-valve behaviour, so a hazard can be reached from several sources, some of them backwards through a pump.
+- Each component has a `service` (process gas, condensate, fuel gas, nitrogen, instrument air and so on), and each plant declares the tie-ins where one service may legitimately enter another (`tie_ins` in the plant file). "Also reached from" lists only sources in the target's service or a declared tie-in; the others are counted, shown with `--json`, and still count towards the verdict. Instrument air and fire water have no connection to process piping.
 - Only the final state is checked. Multi-step procedures are not modelled.
 - Electrical isolation is out of scope.
 - Observation staleness is measured against the store's `as_of` time (the time of the shift picture), or `--at`. The committed stores are fixed at their scenario time so results are reproducible.

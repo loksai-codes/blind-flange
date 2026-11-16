@@ -41,7 +41,7 @@ WITH s, x, path, q, r
 WHERE q IS NOT NULL OR x.state = 'removed'
 RETURN coalesce(q.id, '') AS permit, q.title AS title,
        CASE WHEN q IS NULL THEN 'OPEN_END' ELSE type(r) END AS relation,
-       x.tag AS target, s.tag AS source,
+       x.tag AS target, s.tag AS source, s.service AS source_service, x.service AS target_service,
        [n IN nodes(path) | n.tag] AS path, length(path) AS hops,
        [n IN [s] + nodes(path)[1..-1]
           WHERE coalesce(n.state, 'unknown') = 'unknown' OR coalesce(n.observed_at, '') < $stale_before
