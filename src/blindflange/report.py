@@ -192,6 +192,27 @@ def assessed_components(e: dict) -> dict:
     return comps
 
 
+def path_steps(e: dict, f: dict) -> list[dict]:
+    """Each component on a recorded finding's path: the state the evaluation used, whether the
+    request changed it, and the barriers (closed valves, installed blinds) holding beside it."""
+    comps = assessed_components(e)
+    adj: dict[str, list[str]] = {t: [] for t in comps}
+    for a, b, *_ in e["snapshot"]["connections"]:
+        adj[a].append(b)
+        adj[b].append(a)
+    on_path = set(f.get("path", []))
+    steps = []
+    for tag in f.get("path", []):
+        c = comps[tag]
+        steps.append({"tag": tag, "kind": c["kind"], "name": c.get("name"), "state": c.get("state") or "unknown",
+                      "was": c.get("was"), "integrity": c.get("integrity"),
+                      "observed_at": c.get("observed_at"), "changed_by_request": "was" in c,
+                      "unconfirmed": tag in f.get("uncertain", []),
+                      "barriers_beside": [{"tag": b, "state": comps[b].get("state")} for b in sorted(adj[tag])
+                                          if b not in on_path and comps[b].get("state") in ("closed", "installed")]})
+    return steps
+
+
 def evaluation_html(e: dict) -> str:
     result, snap, req = e["result"], e["snapshot"], e["request"]
     comps = assessed_components(e)

@@ -287,20 +287,8 @@ def call(store_path: str, name: str, args: dict, permits_dir=None) -> dict:
             f = next((x for x in findings if x["code"] == which), None)
         if f is None:
             raise ToolError(f"no finding {which!r} in {e['id']} (it has {len(findings)})")
-        comps = report.assessed_components(e)
-        adj: dict[str, list[str]] = {t: [] for t in comps}
-        for a, b, *_ in e["snapshot"]["connections"]:
-            adj[a].append(b)
-            adj[b].append(a)
-        on_path = set(f.get("path", []))
-        steps = []
-        for tag in f.get("path", []):
-            c = comps[tag]
-            steps.append({"tag": tag, "kind": c["kind"], "name": c.get("name"), "state": c.get("state") or "unknown",
-                          "observed_at": c.get("observed_at"), "changed_by_request": "was" in c,
-                          "unconfirmed": tag in f.get("uncertain", []),
-                          "barriers_beside": [{"tag": b, "state": comps[b].get("state")} for b in sorted(adj[tag])
-                                              if b not in on_path and comps[b].get("state") in ("closed", "installed")]})
+        keep = ("tag", "kind", "name", "state", "observed_at", "changed_by_request", "unconfirmed", "barriers_beside")
+        steps = [{k: s[k] for k in keep} for s in report.path_steps(e, f)]
         result = e["result"]
         return {"evaluation_id": e["id"], "assessment_status": result["assessment_status"],
                 "conflict_verdict": result["conflict_verdict"], "code": f["code"], "verdict": f["severity"],

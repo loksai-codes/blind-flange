@@ -21,8 +21,37 @@ def _exit_code(r: checks.Result) -> int:
     return EXIT[r.conflict_verdict]
 
 
-def _emit(r: checks.Result, as_json: bool) -> None:
-    print(json.dumps(r.to_dict(), indent=2) if as_json else render.result_text(r))
+def _styled(a) -> bool:
+    from . import pretty
+    return not getattr(a, "json", False) and pretty.wanted(getattr(a, "color", "auto"))
+
+
+def _steps(store_path, r: checks.Result, e: dict | None = None) -> list | None:
+    """Each finding's path, step by step, from the recorded evaluation. None if it cannot be read."""
+    from . import report
+    if not r.findings or not (e or (store_path and r.evaluation_id)):
+        return None
+    try:
+        if e is None:
+            conn = store.connect(store_path, read_only=True)
+            try:
+                e = store.get_evaluation(conn, r.evaluation_id)
+            finally:
+                conn.close()
+        return [report.path_steps(e, f) if len(f.get("path", [])) > 1 else None for f in e["result"]["findings"]]
+    except (store.StoreError, KeyError):
+        return None
+
+
+def _text(r: checks.Result, a, e: dict | None = None) -> str:
+    if _styled(a):
+        from . import pretty
+        return pretty.result_pretty(r, _steps(getattr(a, "store", None), r, e))
+    return render.result_text(r)
+
+
+def _emit(r: checks.Result, a) -> None:
+    print(json.dumps(r.to_dict(), indent=2) if a.json else _text(r, a))
 
 
 def _changes(items: list[str]) -> list[dict]:
@@ -48,7 +77,7 @@ def cmd_check(a) -> int:
         r = checks.evaluate(conn, checks.permit_request(permit), max_hops=a.max_hops, at=a.at)
     finally:
         conn.close()
-    _emit(r, a.json)
+    _emit(r, a)
     return _exit_code(r)
 
 
@@ -59,7 +88,7 @@ def cmd_approve(a) -> int:
         r, written = checks.approve(conn, permit, a.revision, a.max_hops, a.at)
     finally:
         conn.close()
-    _emit(r, a.json)
+    _emit(r, a)
     if not a.json:
         print(f"\n  Approved and written to {a.store}." if written
               else "\n  Not approved. Nothing was written.")
@@ -77,7 +106,7 @@ def cmd_set(a) -> int:
     finally:
         conn.close()
     if not written:
-        _emit(r, a.json)
+        _emit(r, a)
         if not a.json and r.assessment_status != checks.ERROR:
             print("\n  State not changed. Resolve the findings, or use --force to override.")
         return 1 if r.assessment_status == checks.ERROR else 2
@@ -85,7 +114,7 @@ def cmd_set(a) -> int:
         print(json.dumps(dict(r.to_dict(), written=True), indent=2))
     else:
         if r.findings:
-            print(render.result_text(r) + "\n")
+            print(_text(r, a) + "\n")
         for c in changes:
             print(f"{c['tag']}: {before.get(c['tag'], '?')} -> {c['to']}")
     return 0
@@ -102,7 +131,7 @@ def cmd_whatif(a) -> int:
             r = checks.evaluate(conn, checks.change_request(hypothetical), (), a.max_hops, a.at, kind="what-if")
     finally:
         conn.close()
-    _emit(r, a.json)
+    _emit(r, a)
     return _exit_code(r)
 
 
@@ -275,7 +304,7 @@ def cmd_show(a) -> int:
     r = _result_from_dict(e["result"])
     r.evaluation_id = e["id"]
     print(f"{e['id']}  recorded {e['at']}  kind {e['kind']}  revision {e['revision']}\n")
-    print(render.result_text(r))
+    print(_text(r, a, e))
     return 0
 
 
@@ -420,6 +449,8 @@ def main(argv=None) -> int:
         p.add_argument("--json", action="store_true", help="machine-readable output")
         p.add_argument("--max-hops", type=_hops, default=None, help="search bound (default 100)")
         p.add_argument("--at", help="assess as of this time (default: now for a live store, as_of for a snapshot)")
+        p.add_argument("--color", choices=("auto", "always", "never"), default="auto",
+                       help="styled output: auto (a terminal, unless NO_COLOR is set), always or never")
         if revision:
             p.add_argument("--revision", type=int, help="refuse if the store is no longer at this revision")
 
@@ -489,6 +520,7 @@ def main(argv=None) -> int:
     p.add_argument("evaluation_id")
     p.add_argument("--store", required=True)
     p.add_argument("--json", action="store_true")
+    p.add_argument("--color", choices=("auto", "always", "never"), default="auto")
 
     p = add("replay", cmd_replay, "re-run a recorded evaluation on its snapshot and compare")
     p.add_argument("evaluation_id")

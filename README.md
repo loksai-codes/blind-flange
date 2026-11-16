@@ -8,6 +8,10 @@ Practitioner review: pending. [`docs/REVIEW_PACK.md`](docs/REVIEW_PACK.md) is wh
 
 Project page: [`docs/index.html`](docs/index.html) · Sample evidence report: [`docs/report-PTW-2201.html`](docs/report-PTW-2201.html) · Agent sessions: [`docs/agent-session.md`](docs/agent-session.md), [`docs/agent-session-2.md`](docs/agent-session-2.md)
 
+<p align="center"><img src="docs/media/demo.svg" width="884" alt="Terminal: restarting train B is BLOCK. The 12-hop path from V-110 runs through the open bypass BV-231, past XV-231 which is closed beside it, to the untested blind BF-230 that PTW-1230 relies on. With BV-231 closed, the same permit is CLEAR."></p>
+
+The animation is the real output of the two commands shown, drawn by `python scripts/demo_svg.py`. In a terminal, results are drawn like this: the verdict, then each finding's path step by step, with the barriers holding beside it. Piped, with `--json`, or with `--color never` or `NO_COLOR` set, the output is the plain text below.
+
 ```
 $ python -m blindflange check data/permits/PTW-0511.yaml --store work.rl
 
@@ -194,7 +198,7 @@ Both plants are illustrative and were written for this project. The condensate u
 
 ## Results
 
-See `eval/results.md` and `docs/stats.json` (both generated; `python scripts/stats.py` refreshes the numbers on this page). On <!--stat:eval_cases-->35<!--/stat--> author-written cases across both plants, the graph check gives the expected verdict, assessment status and finding codes in <!--stat:eval_matched-->35<!--/stat-->. <!--stat:eval_no_verdict-->8<!--/stat--> of those cases expect "cannot say" or an error, and get it. Tag matching stops <!--stat:tag_matching_stopped-->8 of 15<!--/stat--> risky permit requests; it cannot assess a plain state change at all. An independent breadth-first walk (`eval/oracle.py`), written from the spec rather than from the Cypher, agrees with the graph on every hazard set in <!--stat:oracle_agreed-->35<!--/stat--> cases and on <!--stat:random_plants-->120<!--/stat--> random plants in the tests. <!--stat:replay_same-->35<!--/stat--> recorded evaluations replay to the same result. <!--stat:tests_passed-->282<!--/stat--> automated tests pass, and <!--stat:mutations_caught_text-->13 of 13<!--/stat--> deliberate mutations of the checks (`scripts/mutations.py`) are caught by at least one test. CI runs the install, the tests and the eval on Linux, macOS and Windows.
+See `eval/results.md` and `docs/stats.json` (both generated; `python scripts/stats.py` refreshes the numbers on this page). On <!--stat:eval_cases-->35<!--/stat--> author-written cases across both plants, the graph check gives the expected verdict, assessment status and finding codes in <!--stat:eval_matched-->35<!--/stat-->. <!--stat:eval_no_verdict-->8<!--/stat--> of those cases expect "cannot say" or an error, and get it. Tag matching stops <!--stat:tag_matching_stopped-->8 of 15<!--/stat--> risky permit requests; it cannot assess a plain state change at all. An independent breadth-first walk (`eval/oracle.py`), written from the spec rather than from the Cypher, agrees with the graph on every hazard set in <!--stat:oracle_agreed-->35<!--/stat--> cases and on <!--stat:random_plants-->120<!--/stat--> random plants in the tests. <!--stat:replay_same-->35<!--/stat--> recorded evaluations replay to the same result. <!--stat:tests_passed-->286<!--/stat--> automated tests pass, and <!--stat:mutations_caught_text-->13 of 13<!--/stat--> deliberate mutations of the checks (`scripts/mutations.py`) are caught by at least one test. CI runs the install, the tests and the eval on Linux, macOS and Windows.
 
 These cases show what the checks do. They were written by the author, and they are not evidence of field performance.
 
