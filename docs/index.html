@@ -94,11 +94,12 @@ OPTIONAL MATCH (q:Permit)-[r:WORKS_ON|RELIES_ON]-&gt;(x)</code></pre>
 </table></div>
 
 <h2>An agent can ask, but not decide</h2>
-<p><code>blindflange mcp</code> serves eight tools over the Model Context Protocol, on the Python standard library: two that give a verdict, and read-only ones such as <code>trace_path</code> and <code>explain_finding</code> that let an agent explore the graph. There is no tool that approves a permit or changes the plant. We asked Claude Code the same question twice: can train B be restarted?</p>
+<p><code>blindflange mcp</code> serves nine tools over the Model Context Protocol, on the Python standard library: two that give a verdict, <code>list_requests</code> so an agent checks a job as written rather than as it reads the question, and read-only ones such as <code>trace_path</code> and <code>explain_finding</code> that let an agent explore the graph. There is no tool that approves a permit or changes the plant. We asked Claude Code the same question twice: can train B be restarted?</p>
 <div class="grid">
 <div class="card"><h3>Without the tool</h3><p>It read the permit list, found no direct conflict, and hedged: "verify the P&amp;IDs". It could not name the bypass, because the bypass is not in any permit.</p></div>
 <div class="card"><h3>With the tool</h3><p>It called <code>assess_change</code> (BLOCK, with the 12-hop path), then <code>explain_finding</code> to check which isolation the route gets around, and answered DO NOT APPROVE: the route passes the open bypass BV-231 beside the closed XV-231. <a href="https://github.com/loksai-codes/blind-flange/blob/main/docs/agent-session.md">Full transcript.</a></p></div>
 </div>
+<p>Asked loosely, with no permit named, an agent once checked only the change it guessed (start the compressor) and got CLEAR. The written permit makes five changes and is BLOCK. Now the agent lists the written requests first and assesses the real one. <a href="https://github.com/loksai-codes/blind-flange/blob/main/docs/agent-session-2.md">Second session.</a></p>
 
 <h2>Evidence</h2>
 <figure><img src="media/5-eval.png" alt="Eval table of the cases with expected and actual results, tag matching and oracle agreement."></figure>
@@ -106,7 +107,7 @@ OPTIONAL MATCH (q:Permit)-[r:WORKS_ON|RELIES_ON]-&gt;(x)</code></pre>
 <li><!--stat:eval_cases-->35<!--/stat--> author-written cases across both plants, each written before it was run: <!--stat:eval_matched-->35<!--/stat--> give the expected verdict, status and finding codes. <!--stat:eval_no_verdict-->8<!--/stat--> of them expect "cannot say" or an error.</li>
 <li>Tag matching stops <!--stat:tag_matching_stopped-->8 of 15<!--/stat--> risky permit requests.</li>
 <li>An independent breadth-first walk, written from the specification rather than the Cypher, agrees with the graph on every hazard set: in <!--stat:oracle_agreed-->35<!--/stat--> cases and on <!--stat:random_plants-->120<!--/stat--> random plants.</li>
-<li><!--stat:replay_same-->35<!--/stat--> recorded evaluations replay to the same result. <!--stat:tests_passed-->278<!--/stat--> automated tests pass, and <!--stat:mutations_caught_text-->13 of 13<!--/stat--> deliberate mutations of the checks are caught. CI installs and runs everything on Linux, macOS and Windows.</li>
+<li><!--stat:replay_same-->35<!--/stat--> recorded evaluations replay to the same result. <!--stat:tests_passed-->282<!--/stat--> automated tests pass, and <!--stat:mutations_caught_text-->13 of 13<!--/stat--> deliberate mutations of the checks are caught. CI installs and runs everything on Linux, macOS and Windows.</li>
 </ul>
 <p class="note">These cases show what the checks do. They are not evidence of field performance.</p>
 

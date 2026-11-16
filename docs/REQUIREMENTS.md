@@ -3,7 +3,7 @@
 Status basis: 16 Nov 2026. Verified by a fresh `git clone`:
 - Windows 11, Python 3.12, new virtual environment: `pip install -e .` and the
   README's check command gave BLOCK (exit 2).
-- Current numbers, measured by `scripts/stats.py` and checked by a test: <!--stat:tests_passed-->278<!--/stat--> tests pass,
+- Current numbers, measured by `scripts/stats.py` and checked by a test: <!--stat:tests_passed-->282<!--/stat--> tests pass,
   `eval/compare.py` matches <!--stat:eval_matched-->35<!--/stat--> of <!--stat:eval_cases-->35<!--/stat--> cases, and <!--stat:mutations_caught_text-->13 of 13<!--/stat--> mutations are caught.
 - GitHub Actions (`.github/workflows/ci.yml`) installs with `pip install .`, runs the tests and
   the eval on ubuntu-latest, macos-latest and windows-latest with Python 3.12, and fails if
@@ -243,6 +243,6 @@ Electrical isolation, fluid properties, pressure levels, flow simulation, multi-
 | Non-functional (11) | 11 | 0 | 0 |
 | **Total (40)** | **40** | **0** | **0** |
 
-Also done: the agent session for the M2 gate (`docs/agent-session.md`), the project page (`docs/index.html`), gallery images (`docs/media/`) and a sample evidence report (`docs/report-PTW-2201.html`).
+Also done: the agent session for the M2 gate (`docs/agent-session.md`), a second session on partial scope and its fix (`docs/agent-session-2.md`: `list_requests` and `permit_id`), the project page (`docs/index.html`), gallery images (`docs/media/`) and a sample evidence report (`docs/report-PTW-2201.html`).
 
 What remains, and needs a person: make the repository public, record the demo video, and ask a practitioner to review the model (section 9).

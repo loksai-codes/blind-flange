@@ -319,7 +319,7 @@ def cmd_report(a) -> int:
 
 def cmd_mcp(a) -> int:
     from . import agent
-    return agent.serve(a.store)
+    return agent.serve(a.store, a.permits)
 
 
 def cmd_validate(a) -> int:
@@ -501,6 +501,7 @@ def main(argv=None) -> int:
 
     p = add("mcp", cmd_mcp, "serve the agent tools (assess_change, what_if, ...) over MCP stdio")
     p.add_argument("--store", required=True)
+    p.add_argument("--permits", help="folder of written permit requests (YAML), for list_requests and permit_id")
 
     p = add("validate", cmd_validate, "list every problem in a plant, scenario or permit file")
     p.add_argument("file")

@@ -6,7 +6,7 @@ Decision support only. This is not a safety system and has not been reviewed by 
 
 Practitioner review: pending. [`docs/REVIEW_PACK.md`](docs/REVIEW_PACK.md) is what we have asked a process or operations engineer to look at.
 
-Project page: [`docs/index.html`](docs/index.html) · Sample evidence report: [`docs/report-PTW-2201.html`](docs/report-PTW-2201.html) · Agent session: [`docs/agent-session.md`](docs/agent-session.md)
+Project page: [`docs/index.html`](docs/index.html) · Sample evidence report: [`docs/report-PTW-2201.html`](docs/report-PTW-2201.html) · Agent sessions: [`docs/agent-session.md`](docs/agent-session.md), [`docs/agent-session-2.md`](docs/agent-session-2.md)
 
 ```
 $ python -m blindflange check data/permits/PTW-0511.yaml --store work.rl
@@ -139,7 +139,7 @@ The last command prints the BLOCK result shown at the top of this page. Every as
 | `python -m blindflange handover --store <file>` | Active permits, abnormal and unconfirmed states, standing hazards. Leaves the file unchanged. |
 | `python -m blindflange evaluations / show / replay <EVAL-n> --store <file>` | List, show and re-run recorded decisions. |
 | `python -m blindflange report <EVAL-n> --store <file>` | Write an HTML evidence page: the path, barriers beside it, and the plant. |
-| `python -m blindflange mcp --store <file>` | Serve agent tools over MCP (stdio). `assess_change` and `what_if` record an Evaluation; no tool changes plant state or permits. See below. |
+| `python -m blindflange mcp --store <file> [--permits <dir>]` | Serve agent tools over MCP (stdio). `--permits` lets the agent list written requests and assess one by id. `assess_change` and `what_if` record an Evaluation; no tool changes plant state or permits. See below. |
 | `python -m blindflange shift start --from <store> -o <live.rl>` | Copy a store and make the copy live: assessed at the current time from then on. |
 | `python -m blindflange freshness --store <file>` | List observations older than the store's threshold at the assessment time. |
 | `python -m blindflange find "<text>" --store <file>` | Find equipment tags from free text. |
@@ -148,13 +148,15 @@ The last command prints the BLOCK result shown at the top of this page. Every as
 
 Every assessment returns two fields. `assessment_status` is COMPLETE, INCOMPLETE or ERROR. `conflict_verdict` is BLOCK, HOLD, CLEAR, or none when it cannot say. Exit codes: 0 CLEAR or HOLD, 1 error, 2 BLOCK or refused, 3 incomplete with no verdict.
 
-**For an agent.** `python -m blindflange mcp --store gas.work.rl` serves eight tools over the Model Context Protocol, on the standard library only. Two give a verdict: `assess_change` and `what_if`. Six are read-only and let an agent explore the graph instead of only receiving a verdict: `trace_path` (the proven, possible and physical route between two components, with the barriers on it), `explain_finding` (a recorded finding step by step, with the barriers beside each step), `reach`, `handover`, `find_tags` and `get_evaluation`. The verdict comes from the same evaluator as the CLI. There is no tool to approve a permit or change plant state. For Claude Code:
+**For an agent.** `python -m blindflange mcp --store gas.work.rl --permits data/permits` serves nine tools over the Model Context Protocol, on the standard library only. Two give a verdict: `assess_change` and `what_if`. Both take `permit_id`, which loads a written request and assesses it exactly as written. `list_requests` lists the written requests for this plant, so an agent asked about "train B" assesses the real permit rather than the changes it guesses. Six more are read-only and let an agent explore the graph instead of only receiving a verdict: `trace_path` (the proven, possible and physical route between two components, with the barriers on it), `explain_finding` (a recorded finding step by step, with the barriers beside each step), `reach`, `handover`, `find_tags` and `get_evaluation`. The verdict comes from the same evaluator as the CLI. There is no tool to approve a permit or change plant state. For Claude Code:
 
 ```
-claude mcp add blindflange -- python -m blindflange mcp --store gas.work.rl
+claude mcp add blindflange -- python -m blindflange mcp --store gas.work.rl --permits data/permits
 ```
 
 [`docs/agent-session.md`](docs/agent-session.md) records Claude Code asked "can train B be restarted?" with and without the tools. Without them, the agent found no direct conflict and asked for the drawings. With them, it called `assess_change` (BLOCK, the 12-hop path), then `explain_finding` to check which isolation the route gets around, and named XV-231, closed beside the path while the bypass BV-231 is open.
+
+[`docs/agent-session-2.md`](docs/agent-session-2.md) asks the loose question a coordinator would ask, naming no permit. Before `list_requests`, the agent assessed the one change it inferred (start K-220) and got CLEAR; the written permit makes five changes and is BLOCK. With `list_requests` and `permit_id`, the same question gets the written permit assessed as written: BLOCK, with the 12-hop path.
 
 For development, inside the virtual environment:
 
@@ -192,7 +194,7 @@ Both plants are illustrative and were written for this project. The condensate u
 
 ## Results
 
-See `eval/results.md` and `docs/stats.json` (both generated; `python scripts/stats.py` refreshes the numbers on this page). On <!--stat:eval_cases-->35<!--/stat--> author-written cases across both plants, the graph check gives the expected verdict, assessment status and finding codes in <!--stat:eval_matched-->35<!--/stat-->. <!--stat:eval_no_verdict-->8<!--/stat--> of those cases expect "cannot say" or an error, and get it. Tag matching stops <!--stat:tag_matching_stopped-->8 of 15<!--/stat--> risky permit requests; it cannot assess a plain state change at all. An independent breadth-first walk (`eval/oracle.py`), written from the spec rather than from the Cypher, agrees with the graph on every hazard set in <!--stat:oracle_agreed-->35<!--/stat--> cases and on <!--stat:random_plants-->120<!--/stat--> random plants in the tests. <!--stat:replay_same-->35<!--/stat--> recorded evaluations replay to the same result. <!--stat:tests_passed-->278<!--/stat--> automated tests pass, and <!--stat:mutations_caught_text-->13 of 13<!--/stat--> deliberate mutations of the checks (`scripts/mutations.py`) are caught by at least one test. CI runs the install, the tests and the eval on Linux, macOS and Windows.
+See `eval/results.md` and `docs/stats.json` (both generated; `python scripts/stats.py` refreshes the numbers on this page). On <!--stat:eval_cases-->35<!--/stat--> author-written cases across both plants, the graph check gives the expected verdict, assessment status and finding codes in <!--stat:eval_matched-->35<!--/stat-->. <!--stat:eval_no_verdict-->8<!--/stat--> of those cases expect "cannot say" or an error, and get it. Tag matching stops <!--stat:tag_matching_stopped-->8 of 15<!--/stat--> risky permit requests; it cannot assess a plain state change at all. An independent breadth-first walk (`eval/oracle.py`), written from the spec rather than from the Cypher, agrees with the graph on every hazard set in <!--stat:oracle_agreed-->35<!--/stat--> cases and on <!--stat:random_plants-->120<!--/stat--> random plants in the tests. <!--stat:replay_same-->35<!--/stat--> recorded evaluations replay to the same result. <!--stat:tests_passed-->282<!--/stat--> automated tests pass, and <!--stat:mutations_caught_text-->13 of 13<!--/stat--> deliberate mutations of the checks (`scripts/mutations.py`) are caught by at least one test. CI runs the install, the tests and the eval on Linux, macOS and Windows.
 
 These cases show what the checks do. They were written by the author, and they are not evidence of field performance.
 

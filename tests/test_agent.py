@@ -38,7 +38,7 @@ def test_what_if_changes_nothing(rl):
 def test_agent_tools_cannot_change_plant_state():
     names = {t["name"] for t in agent.TOOLS}
     assert names == {"assess_change", "what_if", "reach", "handover", "find_tags", "get_evaluation",
-                     "trace_path", "explain_finding"}
+                     "trace_path", "explain_finding", "list_requests"}
 
 
 def test_get_evaluation_reports_replay(rl):
@@ -72,7 +72,7 @@ def test_mcp_stdio_session(rl):
     out = [json.loads(line) for line in p.stdout.splitlines()]
     assert [o["id"] for o in out] == [1, 2, 3, 4]
     assert out[0]["result"]["protocolVersion"] == "2025-06-18"
-    assert len(out[1]["result"]["tools"]) == 8
+    assert len(out[1]["result"]["tools"]) == 9
     assert any(m["tag"] == "PSV-504" for m in out[2]["result"]["structuredContent"]["matches"])
     assert out[3]["result"]["structuredContent"]["conflict_verdict"] == "BLOCK"
 
@@ -147,3 +147,59 @@ def test_agent_call_gives_up_with_a_clear_error_if_the_store_stays_locked(rl, mo
             agent.call(rl, "find_tags", {"text": "pump A"})
     finally:
         holder.close()
+
+
+
+def _permits():
+    from conftest import ROOT
+    return str(ROOT / "data" / "permits")
+
+
+def test_list_requests_shows_only_this_plants_written_requests(rl):
+    d = agent.call(rl, "list_requests", {}, permits_dir=_permits())
+    ids = {r["id"] for r in d["requests"]}
+    assert "PTW-0511" in ids and not any(i.startswith("PTW-22") for i in ids)
+    assert d["other_plants"] >= 7
+    r = next(r for r in d["requests"] if r["id"] == "PTW-0511")
+    assert r["energises"] == ["P-A"] and r["operates"] == [{"tag": "SV-A", "to": "open"}]
+
+
+def test_a_written_request_by_id_is_assessed_exactly_as_written(tmp_path):
+    """The partial-scope trap: starting K-220 alone is CLEAR, the written restart permit is BLOCK."""
+    from conftest import ROOT
+    gas = tmp_path / "gas.rl"
+    store.build(ROOT / "data" / "scenarios" / "gas_plant.yaml", gas).close()
+    part = agent.call(str(gas), "assess_change", {"changes": [{"tag": "K-220", "to": "in_service"}]})
+    assert part["conflict_verdict"] == "CLEAR"
+    whole = agent.call(str(gas), "assess_change", {"permit_id": "PTW-2201"}, permits_dir=_permits())
+    by_hand = agent.call(str(gas), "assess_change",
+                         {"permit": store.load_permit(ROOT / "data" / "permits" / "PTW-2201.yaml")})
+    assert whole["conflict_verdict"] == by_hand["conflict_verdict"] == "BLOCK"
+    assert whole["findings"] == by_hand["findings"]
+    assert whole["tag_matching_baseline"].startswith("PASS") and "not the plant's state before" in \
+        whole["tag_matching_baseline"]
+    w = agent.call(str(gas), "what_if", {"changes": [{"tag": "BV-231", "to": "closed"}], "permit_id": "PTW-2201"},
+                   permits_dir=_permits())
+    assert w["conflict_verdict"] == "CLEAR"
+
+
+def test_permit_id_errors_are_tool_errors(rl):
+    with pytest.raises(agent.ToolError, match="--permits"):
+        agent.call(rl, "assess_change", {"permit_id": "PTW-0511"})
+    with pytest.raises(agent.ToolError, match="no written request"):
+        agent.call(rl, "assess_change", {"permit_id": "PTW-9999"}, permits_dir=_permits())
+    with pytest.raises(agent.ToolError, match="not both"):
+        agent.call(rl, "assess_change", {"permit_id": "PTW-0511", "permit": {"id": "X"}}, permits_dir=_permits())
+    with pytest.raises(agent.ToolError, match="--permits"):
+        agent.call(rl, "list_requests", {})
+
+
+def test_mcp_stdio_session_with_permits_folder(rl):
+    msgs = [{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "list_requests", "arguments": {}}},
+            {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+             "params": {"name": "assess_change", "arguments": {"permit_id": "PTW-0511"}}}]
+    p = subprocess.run([sys.executable, "-m", "blindflange", "mcp", "--store", rl, "--permits", _permits()],
+                       input="".join(json.dumps(m) + "\n" for m in msgs), capture_output=True, text=True, timeout=60)
+    out = [json.loads(line) for line in p.stdout.splitlines()]
+    assert any(r["id"] == "PTW-0511" for r in out[0]["result"]["structuredContent"]["requests"])
+    assert out[1]["result"]["structuredContent"]["conflict_verdict"] == "BLOCK"
