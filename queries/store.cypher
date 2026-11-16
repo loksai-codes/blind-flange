@@ -147,21 +147,30 @@ RETURN p.id AS id, p.title AS title, p.kind AS kind, p.description AS descriptio
        [x IN collect({tag: v.tag, to: o.to}) WHERE x.tag IS NOT NULL] AS operates
 ORDER BY id
 
+// :snapshot_put
+// Content-addressed: the same plant state is stored once, however many evaluations read it.
+MERGE (s:Snapshot {id: $id})
+ON CREATE SET s.data = $data, s.revision = $revision, s.first_at = $at
+RETURN s.id AS id
+
 // :evaluation_record
 MATCH (s:Store) SET s.eval_seq = s.eval_seq + 1
 WITH s
+MATCH (snap:Snapshot {id: $snapshot_id})
 CREATE (e:Evaluation {id: 'EVAL-' + toString(s.eval_seq), at: $at, revision: s.revision,
                       kind: $kind, request_id: $request_id, rules_version: $rules_version,
                       assessment_status: $assessment_status, conflict_verdict: $conflict_verdict,
-                      request: $request, result: $result, snapshot: $snapshot})
+                      request: $request, result: $result})-[:ASSESSED]->(snap)
 RETURN e.id AS id
 
 // :evaluation_get
+// Records from before snapshots were shared keep their snapshot on the Evaluation itself.
 MATCH (e:Evaluation {id: $id})
+OPTIONAL MATCH (e)-[:ASSESSED]->(snap:Snapshot)
 RETURN e.id AS id, e.at AS at, e.revision AS revision, e.kind AS kind, e.request_id AS request_id,
        e.assessment_status AS assessment_status, e.conflict_verdict AS conflict_verdict,
-       e.rules_version AS rules_version,
-       e.request AS request, e.result AS result, e.snapshot AS snapshot
+       e.rules_version AS rules_version, snap.id AS snapshot_id,
+       e.request AS request, e.result AS result, coalesce(snap.data, e.snapshot) AS snapshot
 
 // :evaluation_list
 MATCH (e:Evaluation)

@@ -82,7 +82,8 @@ BLOCK      PTW-2201  Restart compression on train B
 (:Permit)-[:ENERGISES]->(:Component)           equipment the permit starts
 (:Permit)-[:OPERATES {to}]->(:Component)       state change the permit needs
 (:Store {revision, as_of})                     one per file: the revision every write bumps
-(:Evaluation {request, result, snapshot})      every decision, with the inputs to replay it
+(:Evaluation {request, result})                every decision, with its rules version
+(:Evaluation)-[:ASSESSED]->(:Snapshot)          the inputs it read, stored once per plant state
 ```
 
 **The graph does the reasoning.** The main check is one Cypher statement, [`queries/exposures.cypher`](queries/exposures.cypher). It walks from every live pressure source with a quantified path pattern that filters every hop, stops at closed valves and installed blinds, and joins the end of each path to the permits working there:
@@ -104,7 +105,7 @@ The same statement runs twice. With `$possible = false` the walk only passes com
 
 **Transactions as dry runs.** A request is assessed by writing it into the graph inside a transaction, applying its state changes, querying, and rolling back. Approval is the same steps with a commit, so what was checked is exactly what is stored. The walk runs before and after the change, so hazards the request introduces are separated from hazards that already exist. An existing hazard gives HOLD, never CLEAR.
 
-**Every decision is kept in the same file.** Each assessment appends an `Evaluation` node with the request, the result and a snapshot of every input. `python -m blindflange replay EVAL-1` rebuilds that snapshot in memory and re-runs the check. Writes check the `Store` revision, so an approval prepared against an older picture of the plant is refused.
+**Every decision is kept in the same file.** Each assessment appends an `Evaluation` node with the request, the result and the rules version, linked by `ASSESSED` to a `Snapshot` of every input. A snapshot is stored once per distinct plant state, and its id is the hash of its content, so many evaluations of the same shift share one snapshot and an altered record is refused. `python -m blindflange replay EVAL-1` rebuilds that snapshot in memory and re-runs the check. Writes check the `Store` revision, so an approval prepared against an older picture of the plant is refused.
 
 **Also used:** uniqueness constraints, a full-text index for finding equipment tags from free text, `EXISTS { }` subqueries and `UNION`.
 
@@ -191,7 +192,7 @@ Both plants are illustrative and were written for this project. The condensate u
 
 ## Results
 
-See `eval/results.md` and `docs/stats.json` (both generated; `python scripts/stats.py` refreshes the numbers on this page). On <!--stat:eval_cases-->35<!--/stat--> author-written cases across both plants, the graph check gives the expected verdict, assessment status and finding codes in <!--stat:eval_matched-->35<!--/stat-->. <!--stat:eval_no_verdict-->8<!--/stat--> of those cases expect "cannot say" or an error, and get it. Tag matching stops <!--stat:tag_matching_stopped-->8 of 15<!--/stat--> risky permit requests; it cannot assess a plain state change at all. An independent breadth-first walk (`eval/oracle.py`), written from the spec rather than from the Cypher, agrees with the graph on every hazard set in <!--stat:oracle_agreed-->35<!--/stat--> cases and on <!--stat:random_plants-->120<!--/stat--> random plants in the tests. <!--stat:replay_same-->35<!--/stat--> recorded evaluations replay to the same result. <!--stat:tests_passed-->274<!--/stat--> automated tests pass, and <!--stat:mutations_caught_text-->12 of 12<!--/stat--> deliberate mutations of the checks (`scripts/mutations.py`) are caught by at least one test. CI runs the install, the tests and the eval on Linux, macOS and Windows.
+See `eval/results.md` and `docs/stats.json` (both generated; `python scripts/stats.py` refreshes the numbers on this page). On <!--stat:eval_cases-->35<!--/stat--> author-written cases across both plants, the graph check gives the expected verdict, assessment status and finding codes in <!--stat:eval_matched-->35<!--/stat-->. <!--stat:eval_no_verdict-->8<!--/stat--> of those cases expect "cannot say" or an error, and get it. Tag matching stops <!--stat:tag_matching_stopped-->8 of 15<!--/stat--> risky permit requests; it cannot assess a plain state change at all. An independent breadth-first walk (`eval/oracle.py`), written from the spec rather than from the Cypher, agrees with the graph on every hazard set in <!--stat:oracle_agreed-->35<!--/stat--> cases and on <!--stat:random_plants-->120<!--/stat--> random plants in the tests. <!--stat:replay_same-->35<!--/stat--> recorded evaluations replay to the same result. <!--stat:tests_passed-->278<!--/stat--> automated tests pass, and <!--stat:mutations_caught_text-->13 of 13<!--/stat--> deliberate mutations of the checks (`scripts/mutations.py`) are caught by at least one test. CI runs the install, the tests and the eval on Linux, macOS and Windows.
 
 These cases show what the checks do. They were written by the author, and they are not evidence of field performance.
 

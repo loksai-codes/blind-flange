@@ -44,11 +44,17 @@
 //                max_age_hours (older observations are stale), eval_seq, plant,
 //                tie_ins ('from>to' services a connection may cross on purpose)
 // (:Evaluation)  one per assessment, kept for audit and replay:
-//                id, at, revision, kind, request_id, assessment_status, conflict_verdict,
-//                request, result, snapshot (JSON text: every input needed to replay it)
+//                id, at, revision, kind, request_id, rules_version, assessment_status,
+//                conflict_verdict, request, result (JSON text)
+// (:Evaluation)-[:ASSESSED]->(:Snapshot)
+// (:Snapshot)    every input an evaluation read, stored once per distinct plant state:
+//                id = 'SNAP-' + first 16 hex of sha256(data), data (JSON text), revision.
+//                Evaluations of the same state share one Snapshot; the id proves the
+//                content has not been altered.
 
 CREATE CONSTRAINT component_tag IF NOT EXISTS FOR (c:Component) REQUIRE c.tag IS UNIQUE;
 CREATE CONSTRAINT permit_id IF NOT EXISTS FOR (p:Permit) REQUIRE p.id IS UNIQUE;
 CREATE CONSTRAINT evaluation_id IF NOT EXISTS FOR (e:Evaluation) REQUIRE e.id IS UNIQUE;
 CREATE CONSTRAINT store_id IF NOT EXISTS FOR (s:Store) REQUIRE s.id IS UNIQUE;
+CREATE CONSTRAINT snapshot_id IF NOT EXISTS FOR (s:Snapshot) REQUIRE s.id IS UNIQUE;
 CREATE FULLTEXT INDEX component_text IF NOT EXISTS FOR (c:Component) ON EACH [c.tag, c.name, c.kind];

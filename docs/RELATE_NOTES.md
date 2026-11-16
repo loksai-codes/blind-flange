@@ -74,6 +74,12 @@ and again on Windows 11 with Python 3.12. Not yet verified on macOS.
   read-write connection rewrites the file on close even if every transaction
   was rolled back.
 
+- Evaluations share content-addressed `Snapshot` nodes (`MERGE` on the hash). On the
+  gas plant, 20 checks of the same plant state store one 41 KB snapshot instead of
+  20 copies (about 830 KB). The `.rl` file is allocated in pages, so its size on disk
+  did not change over those 20 checks; the saving shows in the data, not yet in the file.
+- `replace()` on strings works in `SET`.
+
 ## Observed but not relied on
 - A read-only connection accepted writes inside an explicit transaction that
   was then rolled back. This is not documented, so `check` opens the store

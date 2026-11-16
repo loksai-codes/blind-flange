@@ -6,6 +6,7 @@ kept in /queries and /schema so it can be read and run on its own.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -531,15 +532,23 @@ def set_state(conn, tag: str, state: str, at: str, by: str) -> None:
 
 # ---------------------------------------------------------------- evaluations
 
+def snapshot_id(data: str) -> str:
+    return "SNAP-" + hashlib.sha256(data.encode("utf-8")).hexdigest()[:16]
+
+
 def record_evaluation(conn, kind: str, request: dict, result: dict, snap: dict, at: str | None = None) -> str:
-    """Append an Evaluation. It records; it never changes plant state or permits."""
+    """Append an Evaluation, linked to the Snapshot of what it read (stored once per plant state).
+    It records; it never changes plant state or permits."""
+    at = at or now()
+    data = json.dumps(snap, sort_keys=True)
     with transaction(conn, commit=True):
-        got = run(conn, "evaluation_record", at=at or now(), kind=kind, rules_version=RULES_VERSION,
+        sid = run(conn, "snapshot_put", id=snapshot_id(data), data=data,
+                  revision=snap["store"]["revision"], at=at)[0]["id"]
+        got = run(conn, "evaluation_record", at=at, kind=kind, rules_version=RULES_VERSION,
                   request_id=request.get("id") or "", assessment_status=result.get("assessment_status"),
                   conflict_verdict=result.get("conflict_verdict"),
                   request=json.dumps(request, sort_keys=True),
-                  result=json.dumps(result, sort_keys=True),
-                  snapshot=json.dumps(snap, sort_keys=True))
+                  result=json.dumps(result, sort_keys=True), snapshot_id=sid)
     return got[0]["id"]
 
 
@@ -548,6 +557,9 @@ def get_evaluation(conn, eid: str) -> dict:
     if not got:
         raise StoreError(f"no evaluation {eid}")
     e = got[0]
+    if e["snapshot_id"] and snapshot_id(e["snapshot"]) != e["snapshot_id"]:
+        raise StoreError(f"{eid}: snapshot {e['snapshot_id']} does not match its content; the record has been "
+                         f"altered and cannot be replayed")
     for k in ("request", "result", "snapshot"):
         e[k] = json.loads(e[k])
     return e

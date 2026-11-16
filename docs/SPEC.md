@@ -36,8 +36,11 @@ See `schema/schema.cypher` for the data dictionary.
   change the permit needs). Permit `status` is authorization only.
 - One `Store` node per file holds the revision, the time of the shift picture
   (`as_of`) and the observation age limit.
-- One `Evaluation` node per assessment holds the request, the result and a
-  snapshot of every input.
+- One `Evaluation` node per assessment holds the request, the result and the
+  rules version, and points (`ASSESSED`) to a `Snapshot` of every input it read.
+  A Snapshot is stored once per distinct plant state; its id is a hash of its
+  content, so evaluations of the same state share it and an altered snapshot is
+  refused on replay.
 
 ### Passability (the one rule)
 Also in `queries/exposures.cypher`, `queries/bound.cypher`, `queries/reach.cypher`

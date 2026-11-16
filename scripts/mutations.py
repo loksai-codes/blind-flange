@@ -77,6 +77,10 @@ MUTATIONS: dict[str, list[tuple[str, str, str]]] = {
         ("queries/exposures.cypher", "AND (e.flow_from IS NULL OR e.flow_from = a.tag OR $possible) )",
          "AND (true OR $possible) )"),
     ],
+    "M13 altered snapshot accepted": [
+        ("src/blindflange/store.py", '    if e["snapshot_id"] and snapshot_id(e["snapshot"]) != e["snapshot_id"]:',
+         '    if False:'),
+    ],
     "M11 live store assessed at its as_of, not now": [
         ("src/blindflange/store.py",
          '    return now() if store_info.get("mode") == "live" else store_info["as_of"]',

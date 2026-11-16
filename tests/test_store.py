@@ -114,3 +114,35 @@ def test_missing_store_is_not_created(tmp_path):
 def test_store_path_must_end_in_rl(tmp_path):
     with pytest.raises(store.StoreError, match=r"\.rl"):
         store.build(SCENARIO, tmp_path / "s.db")
+
+
+def _count(conn, cypher):
+    return conn.execute(cypher).data()[0]["n"]
+
+
+def test_evaluations_of_the_same_plant_state_share_one_snapshot(conn):
+    ids = [check(conn, pid).evaluation_id for pid in ("PTW-0511", "PTW-0845", "PTW-0850")]
+    assert _count(conn, "MATCH (s:Snapshot) RETURN count(s) AS n") == 1
+    assert _count(conn, "MATCH (:Evaluation)-[:ASSESSED]->(:Snapshot) RETURN count(*) AS n") == 3
+    assert all(store.get_evaluation(conn, i)["snapshot"]["store"]["revision"] == 1 for i in ids)
+
+
+def test_a_new_plant_state_gets_a_new_snapshot(conn):
+    check(conn, "PTW-0511")
+    set_now(conn, "RLV-504", "closed")
+    check(conn, "PTW-0511")
+    assert _count(conn, "MATCH (s:Snapshot) RETURN count(s) AS n") == 2
+
+
+def test_a_snapshot_id_is_the_hash_of_its_content(conn):
+    import hashlib
+    check(conn, "PTW-0511")
+    s = conn.execute("MATCH (s:Snapshot) RETURN s.id AS id, s.data AS data").data()[0]
+    assert s["id"] == "SNAP-" + hashlib.sha256(s["data"].encode("utf-8")).hexdigest()[:16]
+
+
+def test_replay_refuses_a_snapshot_whose_content_was_altered(conn):
+    r = check(conn, "PTW-0511")
+    conn.execute("MATCH (s:Snapshot) SET s.data = replace(s.data, '\"open\"', '\"closed\"')")
+    with pytest.raises(store.StoreError, match="altered"):
+        checks.replay(conn, r.evaluation_id)
