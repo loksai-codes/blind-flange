@@ -45,7 +45,6 @@ Expected and actual results are `conflict_verdict / assessment_status`. `none` m
 - Safe requests wrongly stopped: graph 0 of 9, tag matching 0 of 9.
 - Oracle agreement on every hazard set: 33 of 33.
 - Recorded evaluations reproduced exactly by replay: 33 of 33.
-- Median assessment time (including recording): 37 ms.
 
 ## Misses
 

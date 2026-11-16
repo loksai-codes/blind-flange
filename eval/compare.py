@@ -103,8 +103,6 @@ def main() -> int:
             f"tag matching {sum(r['tags'] == 'FLAG' for r in clean)} of {len(clean)}.",
             f"- Oracle agreement on every hazard set: {stopped(rows, 'oracle')} of {len(rows)}.",
             f"- Recorded evaluations reproduced exactly by replay: {stopped(rows, 'replay')} of {len(rows)}.",
-            f"- Median assessment time (including recording): "
-            f"{sorted(r['ms'] for r in rows)[len(rows) // 2]:.0f} ms.",
             "", "## Misses", ""]
     misses = [r for r in rows if not r["ok"] or not r["oracle"] or not r["replay"]]
     if not misses:
@@ -126,6 +124,8 @@ def main() -> int:
     text = "\n".join(out) + "\n"
     (HERE / "results.md").write_text(text, encoding="utf-8", newline="\n")
     print(text)
+    print(f"Median assessment time, including recording (not written to results.md, which stays "
+          f"reproducible): {sorted(r['ms'] for r in rows)[len(rows) // 2]:.0f} ms")
     return 0 if not misses else 1
 
 
