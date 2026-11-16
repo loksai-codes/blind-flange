@@ -69,6 +69,7 @@ class Finding:
     permit_title: str | None = None
     sources: list[str] = field(default_factory=list)       # same service as the target, or a declared tie-in
     other_service_sources: list[str] = field(default_factory=list)  # also reach it, through no declared tie-in
+    possible_sources: list[str] = field(default_factory=list)  # reach it only by an unconfirmed route
     path: list[str] = field(default_factory=list)
     uncertain: list[str] = field(default_factory=list)    # unconfirmed components the path passes
     against_flow: list[str] = field(default_factory=list) # hops that run against a declared one-way flow
@@ -264,7 +265,7 @@ def assess(conn, req: dict, hypothetical: list[dict] | tuple = (), max_hops: int
         if origin == INTRODUCED and (other, row["target"]) in direct_keys:
             continue                                   # already reported with its one-hop evidence
         g = groups.setdefault((code, row["target"], other, origin, certainty),
-                              {"row": row, "sources": [], "other": []})
+                              {"row": row, "sources": [], "other": [], "possible": []})
         tied = (row["source_service"] == row["target_service"]
                 or f"{row['source_service']}>{row['target_service']}" in tie_ins)
         g["sources" if tied else "other"].append(row["source"])
@@ -275,7 +276,7 @@ def assess(conn, req: dict, hypothetical: list[dict] | tuple = (), max_hops: int
     for key in [k for k in groups if k[4] == POSSIBLE]:
         proven = key[:4] + (PROVEN,)
         if proven in groups:
-            groups[proven]["sources"] += groups[key]["sources"]
+            groups[proven]["possible"] += groups[key]["sources"]
             groups[proven]["other"] += groups[key]["other"]
             del groups[key]
     for (code, target, other, origin, certainty), g in groups.items():
@@ -289,6 +290,7 @@ def assess(conn, req: dict, hypothetical: list[dict] | tuple = (), max_hops: int
         found.append(Finding(code, sev, origin, certainty, target, other, row["title"] if other else None,
                              sources=sorted(set(g["sources"])),
                              other_service_sources=sorted(set(g["other"]) - set(g["sources"])),
+                             possible_sources=sorted(set(g["possible"]) - set(g["sources"])),
                              path=row["path"], uncertain=row["uncertain"], against_flow=row["against_flow"],
                              message=_message(code, target, other, certainty, origin, row["against_flow"])))
 

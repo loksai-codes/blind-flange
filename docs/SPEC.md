@@ -52,8 +52,8 @@ and `src/blindflange/model.py`. Change them together.
 | a `planned_state` (written by approval) | Planned: treated like `unknown` until someone observes the component. |
 
 A connection may declare one-way flow: `[A, B, forward]` in the plant file
-means pressure flows from A to B. Every connection through a check valve must
-declare it. A hop against declared flow is allowed only in the POSSIBLE pass,
+means pressure flows from A to B. Every connection through a check valve, pump
+or compressor must declare it (for a machine, suction to discharge). A hop against declared flow is allowed only in the POSSIBLE pass,
 so a route that needs one is reported as POSSIBLE, labelled "against declared
 flow" with the hops listed. A hazard proven from one source is not made
 uncertain by another source that only reaches it against flow.
@@ -154,6 +154,7 @@ fingerprints the rule-defining queries so the version cannot drift silently.
 | 2 | 16 Nov 2026 | Two result fields; PROVEN and POSSIBLE passes; unknown and stale states never barriers; search-bound probe; existing hazards give HOLD; removed components are open ends; starting equipment through `set` is checked. |
 | 3 | 16 Nov 2026 | Approval records planned states, which are unconfirmed; WORKSITE_SHARED; only BLOCK one-hop findings hide a path finding. |
 | 4 | 16 Nov 2026 | Snapshot and live stores (assessment time); declared one-way flow on check valves; a proven hazard is not made incomplete by another unconfirmed route. |
+| 5 | 16 Nov 2026 | Pumps and compressors are one-way too (suction to discharge); a source that reaches a proven hazard only by an unconfirmed route is listed as a possible source. |
 
 Evaluations recorded before versioning have no rules version and replay as "unknown".
 
@@ -177,9 +178,9 @@ hazard sets as the graph.
 
 ## Known simplifications
 - Pressure is modelled as reachability. There is no pressure level or fluid.
-  Flow direction exists only where it is declared (every check valve); elsewhere
-  a connection carries pressure both ways, and a pump or compressor that is shut
-  down passes pressure in both directions.
+  Flow direction exists only where it is declared: every check valve, pump and
+  compressor. A stopped machine passes pressure from suction to discharge only.
+  Elsewhere a connection carries pressure both ways.
 - A relief valve in place is treated as closed.
 - Only the final state is checked. Multi-step procedures are not modelled.
 - Double block and bleed, vents and drains are not modelled as a pattern.

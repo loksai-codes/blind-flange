@@ -237,6 +237,9 @@ def evaluation_html(e: dict) -> str:
             others = [s for s in f.get("sources", []) if s != f["path"][0]]
             if others:
                 parts.append(f"<p class='note'>Also reached from: {_e(', '.join(others))}</p>")
+            if f.get("possible_sources"):
+                parts.append(f"<p class='note'>Possibly also from: {_e(', '.join(f['possible_sources']))} "
+                             f"(only by an unconfirmed route or against declared flow).</p>")
             if f.get("other_service_sources"):
                 parts.append(f"<p class='note'>Not listed as sources: {_e(', '.join(f['other_service_sources']))} "
                              f"(other services, no declared tie-in; pressure levels are not modelled).</p>")

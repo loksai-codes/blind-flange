@@ -39,6 +39,10 @@ def result_text(r: checks.Result) -> str:
             if others:
                 more = f" and {len(others) - 3} more" if len(others) > 3 else ""
                 out.append(f"     Also reached from: {', '.join(others[:3])}{more}")
+            if f.possible_sources:
+                out.append(f"     Possibly also from: {', '.join(f.possible_sources[:3])}"
+                           f"{' and more' if len(f.possible_sources) > 3 else ''} "
+                           f"(only by an unconfirmed route or against declared flow)")
             if f.other_service_sources:
                 n = len(f.other_service_sources)
                 out.append(f"     Not listed: {n} source{'s' if n != 1 else ''} in other services with no "

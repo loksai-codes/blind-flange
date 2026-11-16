@@ -55,13 +55,39 @@ def test_check_valve_connections_must_declare_flow():
 
 
 @pytest.mark.parametrize("name", ["condensate_unit", "gas_plant"])
-def test_every_check_valve_in_the_plants_is_one_way(name):
+def test_every_check_valve_pump_and_compressor_in_the_plants_is_one_way(name):
     plant = store.load_plant(ROOT / "data" / "plants" / f"{name}.yaml")
-    nrv = {c["tag"] for c in plant["components"] if c["kind"] == "check_valve"}
-    assert nrv
+    one_way = {c["tag"] for c in plant["components"] if c["kind"] in ("check_valve", "pump", "compressor")}
+    assert one_way
     for conn in plant["connections"]:
-        if nrv & set(conn[:2]):
+        if one_way & set(conn[:2]):
             assert conn[2:] == ["forward"], conn
+
+
+@pytest.mark.parametrize("kind", ["pump", "compressor"])
+def test_machine_connections_must_declare_flow(kind):
+    plant = {"components": [SRC, {"tag": "M", "kind": kind, "state": "shutdown"}], "connections": [["SRC", "M"]]}
+    assert any("flow" in p for p in validate.plant(plant))
+
+
+def test_pressure_backwards_through_a_stopped_pump_is_possible_not_proven():
+    pump = {"tag": "P", "kind": "pump", "state": "shutdown"}
+    suction, discharge = dict(L1, tag="LS"), dict(L2, tag="LD")
+    # The live source is on the discharge side; the work is on the suction side.
+    c = tiny([SRC, discharge, pump, suction], [("SRC", "LD"), ("LS", "P", "forward"), ("P", "LD", "forward")],
+             permits=[{"id": "PTW-S", "works_on": ["LS"]}])
+    try:
+        r = checks.survey(c)
+        assert (r.assessment_status, r.conflict_verdict) == (checks.INCOMPLETE, None)
+        assert r.findings[0].against_flow == ["LD->P", "P->LS"]
+    finally:
+        c.close()
+
+
+def test_condensate_headline_lists_pump_b_only_as_a_possible_source(conn):
+    f = check(conn, "PTW-0511").findings[0]
+    assert (f.certainty, f.path) == (checks.PROVEN, ["P-A", "L-PD-A", "RLV-504", "L-RL-504", "BF-504"])
+    assert set(f.sources) == {"JT-DRUM", "P-A"} and f.possible_sources == ["P-B"]
 
 
 def test_gas_headline_stays_proven_and_complete():

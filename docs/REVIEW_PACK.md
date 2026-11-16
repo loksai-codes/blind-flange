@@ -32,7 +32,8 @@ service, or if the job being checked starts it.
 | `unknown`, or not observed for 12 hours, or only *planned* by an approved permit | not trusted either way: the walk may pass it, but anything found that way is "possible", not "proven" |
 | anything else, including a shut-down pump or compressor | pressure passes |
 
-A check valve is one-way: going against its flow is only "possible".
+Check valves, pumps and compressors are one-way (a machine from suction to
+discharge): going against that flow is only "possible".
 
 **What counts as a conflict.** Pressure reaching a place where another permit has
 opened the pipework, or a temporary (untested) blind another permit relies on, or
@@ -77,16 +78,19 @@ route (12 hops, from the HP separator):
 | 11 | RV-230 | L-230R | line, train C relief line | in service |
 | 12 | L-230R | BF-230 | blind fitted in place of PSV-230, temporary | installed (the walk stops here) |
 
-The same blind is also reached, in the gas service, from K-220, the export
-pipeline L-EXP, V-100, V-120 and the wellhead manifold. It is also reached from
-C-400, MOL, P-310 and P-41C. Those four are in other services (condensate, oil,
-glycol) and get there only through connections the tool does not treat as
-deliberate tie-ins, so it does not list them as sources.
+The same blind is also reached, in the gas service and with the declared flow,
+from K-220, V-100, V-120 and the wellhead manifold. The export pipeline L-EXP
+could reach it only backwards through non-return valve NRV-220, so it is listed
+as a possible source, not a proven one. C-400, MOL, P-310 and P-41C also connect
+to it, but they are in other services (condensate, oil, glycol) and get there
+only through connections the tool does not treat as deliberate tie-ins, so they
+are not listed as sources.
 
 Edges we expect you might question:
 
 - **8 to 9, through the stopped compressor K-230.** We let pressure pass a stopped
-  machine from suction to discharge (settle-out). Is that how you would treat it?
+  machine from suction to discharge (settle-out), but never backwards. Is that how
+  you would treat it?
 - **4, the bypass BV-231.** The scenario assumes a small-bore pressurisation bypass
   around a suction isolation valve is left open and is not on the isolation list.
   Is that plausible, and would your isolation procedure catch it anyway?
@@ -101,8 +105,8 @@ each step, is [`report-PTW-2201.html`](report-PTW-2201.html).
 - **No pressure levels, fluids or flow rates.** Reachability only. Instrument air
   is treated the same as HP gas, which is one reason utilities are kept as
   separate services.
-- **Flow direction only on check valves.** Everything else carries pressure both
-  ways, so a hazard can be reached backwards through a stopped pump.
+- **Flow direction only on check valves, pumps and compressors.** Lines, vessels
+  and ordinary valves carry pressure both ways.
 - **Final state only.** A sequence of steps (isolate, vent, drain, then break) is
   not modelled.
 - **No double block and bleed** as a pattern; no vents and drains as part of

@@ -210,10 +210,11 @@ c("XV-640", "valve", "Fire water to stabiliser deluge", "closed")
 c("L-640", "line", "Stabiliser deluge line", "in_service")
 link("FW-HDR", "XV-640", "L-640")
 
-# Check valves are one-way. Every link() through one is written upstream to
-# downstream, so its two connections get declared flow in that order.
-check_valves = {c["tag"] for c in comps if c["kind"] == "check_valve"}
-conns = [p + ["forward"] if check_valves & set(p) else p for p in conns]
+# Check valves, pumps and compressors are one-way. Every link() through one is
+# written upstream to downstream (suction to discharge), so its connections get
+# declared flow in that order.
+one_way = {c["tag"] for c in comps if c["kind"] in ("check_valve", "pump", "compressor")}
+conns = [p + ["forward"] if one_way & set(p) else p for p in conns]
 
 plant = {
     "unit": "Gas processing plant (illustrative)",

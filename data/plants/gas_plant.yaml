@@ -880,12 +880,15 @@ connections:
   - L-210S
 - - L-210S
   - K-210
+  - forward
 - - K-210
   - L-210D
+  - forward
 - - L-FG
   - XV-215
 - - XV-215
   - K-210
+  - forward
 - - L-210D
   - FV-212
 - - FV-212
@@ -930,12 +933,15 @@ connections:
   - L-220S
 - - L-220S
   - K-220
+  - forward
 - - K-220
   - L-220D
+  - forward
 - - L-FG
   - XV-225
 - - XV-225
   - K-220
+  - forward
 - - L-220D
   - FV-222
 - - FV-222
@@ -980,12 +986,15 @@ connections:
   - L-230S
 - - L-230S
   - K-230
+  - forward
 - - K-230
   - L-230D
+  - forward
 - - L-FG
   - XV-235
 - - XV-235
   - K-230
+  - forward
 - - L-230D
   - FV-232
 - - FV-232
@@ -1054,8 +1063,10 @@ connections:
   - C-310
 - - C-310
   - P-310
+  - forward
 - - P-310
   - L-311
+  - forward
 - - L-311
   - C-300
 - - L-301
@@ -1096,8 +1107,10 @@ connections:
   - L-41AS
 - - L-41AS
   - P-41A
+  - forward
 - - P-41A
   - L-41AD
+  - forward
 - - L-41AD
   - NRV-41A
   - forward
@@ -1126,8 +1139,10 @@ connections:
   - L-41BS
 - - L-41BS
   - P-41B
+  - forward
 - - P-41B
   - L-41BD
+  - forward
 - - L-41BD
   - NRV-41B
   - forward
@@ -1156,8 +1171,10 @@ connections:
   - L-41CS
 - - L-41CS
   - P-41C
+  - forward
 - - P-41C
   - L-41CD
+  - forward
 - - L-41CD
   - NRV-41C
   - forward

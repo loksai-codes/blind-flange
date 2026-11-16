@@ -61,8 +61,7 @@ MUTATIONS: dict[str, list[tuple[str, str, str]]] = {
          "    if False:\n        result = Result("),
     ],
     "M8 replay always reports a match": [
-        ("src/blindflange/checks.py", '    return e["result"], replayed, replayed == e["result"]',
-         '    return e["result"], replayed, True'),
+        ("src/blindflange/checks.py", '"same": replayed == e["result"],', '"same": True,'),
     ],
     "M9 shared worksite not detected": [
         ("queries/direct.cypher",

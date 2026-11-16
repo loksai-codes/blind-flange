@@ -18,7 +18,8 @@ BLOCK      PTW-0511  Reinstate and start condensate pump A
      Pressure would reach BF-504, a temporary barrier that PTW-0504 relies on. It has not been pressure-tested.
      Other permit: PTW-0504  PSV-504 recertification (relief valve removed to workshop)
      Path (4 hops): P-A -> L-PD-A -> RLV-504 -> L-RL-504 -> BF-504
-     Also reached from: JT-DRUM, P-B
+     Also reached from: JT-DRUM
+     Possibly also from: P-B (only by an unconfirmed route or against declared flow)
      Not listed: 1 source in other services with no declared tie-in (--json shows them)
 
   Tag matching alone: no shared tags with any active permit, so it would pass.
@@ -190,7 +191,7 @@ Both plants are illustrative and were written for this project. The condensate u
 
 ## Results
 
-See `eval/results.md` and `docs/stats.json` (both generated; `python scripts/stats.py` refreshes the numbers on this page). On <!--stat:eval_cases-->35<!--/stat--> author-written cases across both plants, the graph check gives the expected verdict, assessment status and finding codes in <!--stat:eval_matched-->35<!--/stat-->. <!--stat:eval_no_verdict-->8<!--/stat--> of those cases expect "cannot say" or an error, and get it. Tag matching stops <!--stat:tag_matching_stopped-->8 of 15<!--/stat--> risky permit requests; it cannot assess a plain state change at all. An independent breadth-first walk (`eval/oracle.py`), written from the spec rather than from the Cypher, agrees with the graph on every hazard set in <!--stat:oracle_agreed-->35<!--/stat--> cases and on <!--stat:random_plants-->120<!--/stat--> random plants in the tests. <!--stat:replay_same-->35<!--/stat--> recorded evaluations replay to the same result. <!--stat:tests_passed-->270<!--/stat--> automated tests pass, and <!--stat:mutations_caught_text-->12 of 12<!--/stat--> deliberate mutations of the checks (`scripts/mutations.py`) are caught by at least one test. CI runs the install, the tests and the eval on Linux, macOS and Windows.
+See `eval/results.md` and `docs/stats.json` (both generated; `python scripts/stats.py` refreshes the numbers on this page). On <!--stat:eval_cases-->35<!--/stat--> author-written cases across both plants, the graph check gives the expected verdict, assessment status and finding codes in <!--stat:eval_matched-->35<!--/stat-->. <!--stat:eval_no_verdict-->8<!--/stat--> of those cases expect "cannot say" or an error, and get it. Tag matching stops <!--stat:tag_matching_stopped-->8 of 15<!--/stat--> risky permit requests; it cannot assess a plain state change at all. An independent breadth-first walk (`eval/oracle.py`), written from the spec rather than from the Cypher, agrees with the graph on every hazard set in <!--stat:oracle_agreed-->35<!--/stat--> cases and on <!--stat:random_plants-->120<!--/stat--> random plants in the tests. <!--stat:replay_same-->35<!--/stat--> recorded evaluations replay to the same result. <!--stat:tests_passed-->274<!--/stat--> automated tests pass, and <!--stat:mutations_caught_text-->12 of 12<!--/stat--> deliberate mutations of the checks (`scripts/mutations.py`) are caught by at least one test. CI runs the install, the tests and the eval on Linux, macOS and Windows.
 
 These cases show what the checks do. They were written by the author, and they are not evidence of field performance.
 
@@ -200,7 +201,7 @@ Commercial control-of-work products manage permits and isolations together, incl
 
 ## Limits
 
-- Pressure levels are not modelled. Pressure is reachability: no pressure levels or fluids. Flow direction is declared only on one-way connections (every check valve); a route against declared flow is reported as POSSIBLE, "against declared flow", never PROVEN. Everywhere else a connection carries pressure both ways, so a hazard can still be reached backwards through a stopped pump.
+- Pressure levels are not modelled. Pressure is reachability: no pressure levels or fluids. Flow direction is declared on every check valve, pump and compressor (suction to discharge); a route against declared flow is reported as POSSIBLE, "against declared flow", never PROVEN, and a source reached only that way is listed as a possible source. Lines, vessels and ordinary valves carry pressure both ways.
 - Each component has a `service` (process gas, condensate, fuel gas, nitrogen, instrument air and so on), and each plant declares the tie-ins where one service may legitimately enter another (`tie_ins` in the plant file). "Also reached from" lists only sources in the target's service or a declared tie-in; the others are counted, shown with `--json`, and still count towards the verdict. Instrument air and fire water have no connection to process piping.
 - Only the final state is checked. Multi-step procedures are not modelled.
 - Electrical isolation is out of scope.

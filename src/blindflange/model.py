@@ -42,7 +42,7 @@ PERMIT_STATUS = {"requested", "active", "closed"}
 # replay can say when a result was made under different rules. RULES_SHA is a
 # fingerprint of the rule-defining queries; tests/test_rules_version.py fails if
 # they change without a new version (and a line in the history in docs/SPEC.md).
-RULES_VERSION = 4
+RULES_VERSION = 5
 RULES_FILES = ("exposures", "bound", "direct", "apply", "plan", "reach", "trace")
 RULES_SHA = "bc8cac2d195a8cab"
 

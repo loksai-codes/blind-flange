@@ -40,13 +40,14 @@ def test_gas_headline_lists_only_same_service_or_tied_in_sources():
         f = check(conn, "PTW-2201").findings[0]
     finally:
         conn.close()
-    assert set(f.sources) == {"K-220", "L-EXP", "V-100", "V-110", "V-120", "WH-MAN"}
+    assert set(f.sources) == {"K-220", "V-100", "V-110", "V-120", "WH-MAN"}
+    assert f.possible_sources == ["L-EXP"]                     # only against non-return valve NRV-220
     assert set(f.other_service_sources) == {"C-400", "MOL", "P-310", "P-41C"}
 
 
 def test_condensate_headline_hides_the_main_oil_line(conn):
     f = check(conn, "PTW-0511").findings[0]
-    assert set(f.sources) == {"JT-DRUM", "P-A", "P-B"}
+    assert set(f.sources) == {"JT-DRUM", "P-A"}               # P-B only backwards through its own suction
     assert f.other_service_sources == ["MOL"]
 
 
