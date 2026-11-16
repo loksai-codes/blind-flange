@@ -1,0 +1,40 @@
+# Start of the night shift on the illustrative gas plant.
+# Compression is down after a trip. Train C is in maintenance: its relief valve
+# PSV-230 is in the workshop and a temporary blind BF-230 is fitted. The small
+# pressurisation bypass BV-231 around train C's suction valve was left open.
+plant: ../plants/gas_plant.yaml
+as_of: 2026-11-15T18:00:00Z
+max_observation_age_hours: 12
+observations:
+  - {tag: BV-231, state: open, observed_at: 2026-11-15T17:20:00Z, observed_by: night shift round}
+  - {tag: XV-231, state: closed, observed_at: 2026-11-15T17:20:00Z, observed_by: night shift round}
+  - {tag: BF-230, state: installed, observed_at: 2026-11-15T09:40:00Z, observed_by: PTW-1230 isolation certificate}
+permits:
+  - id: PTW-1230
+    title: Train C PSV-230 recertification
+    kind: maintenance
+    description: Remove train C discharge relief valve PSV-230 for recertification. Temporary blind BF-230 fitted.
+    works_on: [PSV-230]
+    relies_on: [BF-230, XV-231, XV-233]
+  - id: PTW-1310
+    title: Dry gas filter element change
+    kind: maintenance
+    description: Open dry gas filter F-300 and change the elements. Gas routed through bypass BV-300.
+    works_on: [F-300]
+    relies_on: [XV-301, XV-302, DR-300]
+  - id: PTW-1420
+    title: Condensate pump B mechanical seal replacement
+    kind: maintenance
+    works_on: [P-41B]
+    relies_on: [SV-41B, DV-41B, DR-41B]
+  - id: PTW-1505
+    title: Export pig launcher door inspection
+    kind: maintenance
+    description: Launcher depressurised to flare through VNT-500. Door to be opened.
+    works_on: [PL-500]
+    relies_on: [XV-501, XV-502]
+  - id: PTW-1610
+    title: Replace train C nitrogen purge spool
+    kind: maintenance
+    works_on: [L-N2-610]
+    relies_on: [XV-610, XV-611]

@@ -1,0 +1,10 @@
+id: PTW-2201
+title: Restart compression on train B
+kind: operation
+description: After the trip, open the suction shutdown valve and start train B.
+energises: [K-220]
+operates:
+  - {tag: SDV-110, to: open}
+  - {tag: XV-221, to: open}
+  - {tag: XV-223, to: open}
+  - {tag: FV-222, to: open}

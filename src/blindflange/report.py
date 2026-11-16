@@ -46,11 +46,13 @@ def _e(s) -> str:
 def _layout(tags: list[str], edges: list[tuple[str, str]], width: float, height: float) -> dict:
     """A deterministic force-directed layout (Fruchterman-Reingold)."""
     rng = random.Random(7)
-    pos = {t: [rng.uniform(0, width), rng.uniform(0, height)] for t in tags}
     n = max(len(tags), 1)
-    k = math.sqrt(width * height / n) * 0.8
-    temp = width / 8
-    for _ in range(160):
+    pos = {t: [width / 2 + width * 0.35 * math.cos(2 * math.pi * i / n) + rng.uniform(-5, 5),
+               height / 2 + height * 0.35 * math.sin(2 * math.pi * i / n) + rng.uniform(-5, 5)]
+           for i, t in enumerate(tags)}
+    k = math.sqrt(width * height / n) * 0.75
+    temp = width / 10
+    for _ in range(260):
         disp = {t: [0.0, 0.0] for t in tags}
         for i, a in enumerate(tags):
             pa = pos[a]
@@ -71,7 +73,9 @@ def _layout(tags: list[str], edges: list[tuple[str, str]], width: float, height:
             disp[a][1] -= dy / d * f
             disp[b][0] += dx / d * f
             disp[b][1] += dy / d * f
-        for t in tags:
+        for t in tags:                                  # gentle pull to the centre keeps nodes off the walls
+            disp[t][0] -= (pos[t][0] - width / 2) * 1.2
+            disp[t][1] -= (pos[t][1] - height / 2) * 1.2
             dx, dy = disp[t]
             d = math.hypot(dx, dy) or 0.01
             pos[t][0] = min(width - 40, max(40, pos[t][0] + dx / d * min(d, temp)))
@@ -85,7 +89,7 @@ def _plant_svg(snap: dict, result: dict) -> str:
     edges = [tuple(e) for e in snap["connections"]]
     tags = sorted(comps)
     w = 1060
-    h = max(420, min(1400, int(18 * len(tags))))
+    h = max(420, min(1600, int(9 * len(tags) + 300)))
     pos = _layout(tags, edges, w, h)
     lit_edges, lit_nodes, sources, targets = set(), set(), set(), set()
     for f in result.get("findings", []):
@@ -130,32 +134,39 @@ def _plant_svg(snap: dict, result: dict) -> str:
 
 def _path_svg(path: list[str], comps: dict, adj: dict, uncertain: set) -> str:
     """One finding's path as a strip, with the barriers that hold beside each step."""
-    step, box_w, box_h = 132, 112, 46
+    step, box_w, box_h, per_row = 160, 136, 46, 6
     on_path = set(path)
     holding = {t: [b for b in adj.get(t, []) if b not in on_path and (comps[b].get("state") in BARRIER)]
                for t in path}
-    rows = max((len(v) for v in holding.values()), default=0)
-    w = step * len(path) + 20
-    h = 70 + rows * 30 + 20
+    rows = [path[i:i + per_row] for i in range(0, len(path), per_row)]
+    band = [box_h + 30 + 30 * max((len(holding[t]) for t in r), default=0) for r in rows]
+    w = step * min(len(path), per_row) + 20
+    h = sum(band) + 20
     out = [f'<svg viewBox="0 0 {w} {h}" width="{w}" height="{h}" role="img" aria-label="Evidence path">']
     for i, t in enumerate(path):
-        x = 10 + i * step
+        row, col = divmod(i, per_row)
+        x = 10 + col * step
+        oy = sum(band[:row])
         c = comps.get(t, {})
         state = c.get("state") or "unknown"
         last = i == len(path) - 1
         stroke = "var(--unc)" if t in uncertain else ("var(--path)" if (i == 0 or last) else "var(--line)")
         dash = ' stroke-dasharray="5 3"' if t in uncertain else ""
-        out.append(f'<rect x="{x}" y="10" width="{box_w}" height="{box_h}" rx="5" fill="var(--card)" '
+        out.append(f'<rect x="{x}" y="{oy + 10}" width="{box_w}" height="{box_h}" rx="5" fill="var(--card)" '
                    f'stroke="{stroke}" stroke-width="2"{dash}/>')
-        out.append(f'<text x="{x + 8}" y="29" font-weight="700">{_e(t)}</text>')
-        out.append(f'<text class="sub" x="{x + 8}" y="45">{_e(c.get("kind", ""))} · {_e(state)}</text>')
-        if not last:
+        out.append(f'<text x="{x + 8}" y="{oy + 29}" font-weight="700">{_e(t)}</text>')
+        changed = f" (was {_e(c['was'])})" if c.get("was") else ""
+        out.append(f'<text class="sub" x="{x + 8}" y="{oy + 45}">{_e(c.get("kind", ""))} · {_e(state)}{changed}</text>')
+        if not last and col < per_row - 1:
             ax = x + box_w
-            out.append(f'<line x1="{ax + 2}" y1="33" x2="{ax + step - box_w - 4}" y2="33" stroke="var(--path)" '
-                       f'stroke-width="2.5"/><path d="M{ax + step - box_w - 4},28 l6,5 l-6,5 z" fill="var(--path)"/>')
+            out.append(f'<line x1="{ax + 2}" y1="{oy + 33}" x2="{ax + step - box_w - 4}" y2="{oy + 33}" '
+                       f'stroke="var(--path)" stroke-width="2.5"/>'
+                       f'<path d="M{ax + step - box_w - 4},{oy + 28} l6,5 l-6,5 z" fill="var(--path)"/>')
+        elif not last:
+            out.append(f'<text x="{x + box_w + 4}" y="{oy + 37}" fill="var(--path)">&#8629;</text>')
         for j, b in enumerate(holding[t]):
-            by = 10 + box_h + 14 + j * 30
-            out.append(f'<line x1="{x + box_w / 2}" y1="{10 + box_h}" x2="{x + box_w / 2}" y2="{by}" '
+            by = oy + 10 + box_h + 14 + j * 30
+            out.append(f'<line x1="{x + box_w / 2}" y1="{oy + 10 + box_h}" x2="{x + box_w / 2}" y2="{by}" '
                        f'stroke="var(--barrier)" stroke-dasharray="2 2"/>')
             out.append(f'<text x="{x + 8}" y="{by + 12}" fill="var(--barrier)">⊣ {_e(b)} '
                        f'{_e(comps[b].get("state"))}</text>')
@@ -165,7 +176,18 @@ def _path_svg(path: list[str], comps: dict, adj: dict, uncertain: set) -> str:
 
 def evaluation_html(e: dict) -> str:
     result, snap, req = e["result"], e["snapshot"], e["request"]
-    comps = {c["tag"]: c for c in snap["components"]}
+    comps = {c["tag"]: dict(c) for c in snap["components"]}
+    changes = list(req.get("hypothetical", []))
+    if req.get("type") == "change":
+        changes += req.get("changes", [])
+    elif req.get("type") == "permit" and isinstance(req.get("permit"), dict):
+        changes += req["permit"].get("operates", [])
+        changes += [{"tag": t, "to": "in_service"} for t in req["permit"].get("energises", [])]
+    for ch in changes:
+        c = comps.get(ch.get("tag"))
+        if c and c.get("state") != ch.get("to"):
+            c["was"], c["state"] = c.get("state") or "unknown", ch["to"]
+    snap = dict(snap, components=list(comps.values()))
     adj: dict[str, list[str]] = {t: [] for t in comps}
     for a, b in snap["connections"]:
         adj[a].append(b)

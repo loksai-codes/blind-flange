@@ -1,0 +1,7 @@
+id: PTW-2205
+title: Nitrogen purge of train C
+kind: operation
+description: Purge train C with nitrogen before it is returned to service.
+operates:
+  - {tag: XV-610, to: open}
+  - {tag: XV-611, to: open}

@@ -1,0 +1,6 @@
+id: PTW-2203
+title: Return the dry gas filter to service
+kind: operation
+operates:
+  - {tag: XV-301, to: open}
+  - {tag: XV-302, to: open}

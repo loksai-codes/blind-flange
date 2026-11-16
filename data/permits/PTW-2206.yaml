@@ -1,0 +1,7 @@
+id: PTW-2206
+title: Launch an export pig
+kind: operation
+operates:
+  - {tag: VNT-500, to: closed}
+  - {tag: XV-502, to: open}
+  - {tag: XV-501, to: open}

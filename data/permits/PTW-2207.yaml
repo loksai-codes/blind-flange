@@ -1,0 +1,6 @@
+id: PTW-2207
+title: Inspect the train C suction scrubber
+kind: maintenance
+description: Open V-230 for internal inspection. Isolated by the train C suction valve and its drain closed.
+works_on: [V-230]
+relies_on: [XV-231, DR-230]

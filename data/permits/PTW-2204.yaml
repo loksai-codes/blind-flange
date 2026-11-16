@@ -1,0 +1,7 @@
+id: PTW-2204
+title: Start condensate pump A
+kind: operation
+energises: [P-41A]
+operates:
+  - {tag: SV-41A, to: open}
+  - {tag: DV-41A, to: open}

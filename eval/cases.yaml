@@ -143,3 +143,72 @@ cases:
     expect: none
     status: INCOMPLETE
     note: The walk cannot reach the blind within 3 hops. It must not say CLEAR.
+
+  # ---------------------------------------------------------- gas plant (151 components)
+  - name: Restart compression with a suction bypass left open on the train in maintenance
+    scenario: gas_plant
+    request: PTW-2201
+    expect: BLOCK
+    codes: [PRESSURE_REACHES_TEMPORARY_BARRIER]
+    note: >-
+      The headline on the larger plant. PTW-1230's listed isolation XV-231 is closed, but the
+      small-bore bypass BV-231 around it is open. No shared tag; the route is 12 hops.
+  - name: Restart compression after the bypass is closed
+    scenario: gas_plant
+    setup: [{set: [BV-231, closed]}]
+    request: PTW-2201
+    expect: CLEAR
+  - name: Restore seal gas to the compressor in maintenance
+    scenario: gas_plant
+    request: PTW-2202
+    expect: BLOCK
+    codes: [PRESSURE_REACHES_TEMPORARY_BARRIER]
+    note: Fuel gas reaches the blind through the compressor casing. No shared tag.
+  - name: Open the train B / train C cross-tie
+    scenario: gas_plant
+    request: {set: [XV-TIE, open]}
+    expect: BLOCK
+    codes: [PRESSURE_REACHES_TEMPORARY_BARRIER]
+    note: Train B is pressurised by its seal gas. A second route into train C's discharge.
+  - name: Return the dry gas filter to service while it is open
+    scenario: gas_plant
+    request: PTW-2203
+    expect: BLOCK
+    codes: [ISOLATION_REMOVED, PRESSURE_REACHES_OPEN_WORK]
+  - name: Start condensate pump A while pump B is isolated for a seal job
+    scenario: gas_plant
+    request: PTW-2204
+    expect: CLEAR
+  - name: Nitrogen purge into the train in maintenance
+    scenario: gas_plant
+    request: PTW-2205
+    expect: BLOCK
+    codes: [ISOLATION_REMOVED, PRESSURE_REACHES_TEMPORARY_BARRIER]
+  - name: Launch a pig while the launcher door is being inspected
+    scenario: gas_plant
+    request: PTW-2206
+    expect: BLOCK
+    codes: [ISOLATION_REMOVED, PRESSURE_REACHES_OPEN_WORK]
+  - name: Scrubber inspection behind an isolation already in use
+    scenario: gas_plant
+    request: PTW-2207
+    expect: HOLD
+    codes: [SHARED_ISOLATION]
+  - name: Restart compression, bypass valve state unknown
+    scenario: gas_plant
+    setup: [{set: [BV-231, unknown]}]
+    request: PTW-2201
+    expect: none
+    status: INCOMPLETE
+  - name: Restart compression, bypass last seen closed two days ago
+    scenario: gas_plant
+    setup: [{observe: [BV-231, closed, "2026-11-13T18:00:00Z"]}]
+    request: PTW-2201
+    expect: none
+    status: INCOMPLETE
+  - name: Restart compression with a search bound shorter than the route
+    scenario: gas_plant
+    request: PTW-2201
+    max_hops: 10
+    expect: none
+    status: INCOMPLETE

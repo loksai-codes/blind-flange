@@ -27,13 +27,25 @@ Expected and actual results are `conflict_verdict / assessment_status`. `none` m
 | Unknown bypass valve with no work behind it | condensate | CLEAR / COMPLETE | CLEAR / COMPLETE | PASS | yes | same | - |
 | Stale observation on a relied-on isolation | condensate | none / INCOMPLETE | none / INCOMPLETE | PASS | yes | same | 6 hops |
 | Search bound too small to finish | condensate | none / INCOMPLETE | none / INCOMPLETE | PASS | yes | same | - |
+| Restart compression with a suction bypass left open on the train in maintenance | gas_plant | BLOCK / COMPLETE | BLOCK / COMPLETE | PASS | yes | same | 12 hops |
+| Restart compression after the bypass is closed | gas_plant | CLEAR / COMPLETE | CLEAR / COMPLETE | PASS | yes | same | - |
+| Restore seal gas to the compressor in maintenance | gas_plant | BLOCK / COMPLETE | BLOCK / COMPLETE | PASS | yes | same | 9 hops |
+| Open the train B / train C cross-tie | gas_plant | BLOCK / COMPLETE | BLOCK / COMPLETE | n/a | yes | same | 11 hops |
+| Return the dry gas filter to service while it is open | gas_plant | BLOCK / COMPLETE | BLOCK / COMPLETE | FLAG | yes | same | 5 hops |
+| Start condensate pump A while pump B is isolated for a seal job | gas_plant | CLEAR / COMPLETE | CLEAR / COMPLETE | PASS | yes | same | - |
+| Nitrogen purge into the train in maintenance | gas_plant | BLOCK / COMPLETE | BLOCK / COMPLETE | FLAG | yes | same | 10 hops |
+| Launch a pig while the launcher door is being inspected | gas_plant | BLOCK / COMPLETE | BLOCK / COMPLETE | FLAG | yes | same | 4 hops |
+| Scrubber inspection behind an isolation already in use | gas_plant | HOLD / COMPLETE | HOLD / COMPLETE | FLAG | yes | same | - |
+| Restart compression, bypass valve state unknown | gas_plant | none / INCOMPLETE | none / INCOMPLETE | PASS | yes | same | 12 hops |
+| Restart compression, bypass last seen closed two days ago | gas_plant | none / INCOMPLETE | none / INCOMPLETE | PASS | yes | same | 12 hops |
+| Restart compression with a search bound shorter than the route | gas_plant | none / INCOMPLETE | none / INCOMPLETE | PASS | yes | same | - |
 
-- Graph check: 21 of 21 cases match the expected verdict, status and finding codes.
-- Risky requests stopped (BLOCK or HOLD expected): graph 10 of 10; tag matching 3 of 8 (permit requests only; it cannot assess a state change).
-- Safe requests wrongly stopped: graph 0 of 7, tag matching 0 of 7.
-- Oracle agreement on every hazard set: 21 of 21.
-- Recorded evaluations reproduced exactly by replay: 21 of 21.
-- Median assessment time (including recording): 31 ms.
+- Graph check: 33 of 33 cases match the expected verdict, status and finding codes.
+- Risky requests stopped (BLOCK or HOLD expected): graph 17 of 17; tag matching 7 of 14 (permit requests only; it cannot assess a state change).
+- Safe requests wrongly stopped: graph 0 of 9, tag matching 0 of 9.
+- Oracle agreement on every hazard set: 33 of 33.
+- Recorded evaluations reproduced exactly by replay: 33 of 33.
+- Median assessment time (including recording): 37 ms.
 
 ## Misses
 

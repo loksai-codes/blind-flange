@@ -35,7 +35,8 @@ def result_text(r: checks.Result) -> str:
             out.append(f"     Path ({n} hop{'s' if n != 1 else ''}): {ARROW.join(f.path)}")
             others = [s for s in f.sources if s != f.path[0]]
             if others:
-                out.append(f"     Also reached from: {', '.join(others)}")
+                more = f" and {len(others) - 3} more" if len(others) > 3 else ""
+                out.append(f"     Also reached from: {', '.join(others[:3])}{more}")
         for e in f.evidence:
             out.append(f"     Evidence: {e}")
         if f.uncertain:

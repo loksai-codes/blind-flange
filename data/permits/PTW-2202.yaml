@@ -1,0 +1,6 @@
+id: PTW-2202
+title: Restore seal gas to train C compressor
+kind: operation
+description: Open the seal gas supply to K-230 ahead of its return to service.
+operates:
+  - {tag: XV-235, to: open}
