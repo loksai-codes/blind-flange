@@ -45,8 +45,8 @@ th { font-weight: 600; }
 <p class="lede">Before a work permit is approved, Blind Flange walks the plant's piping graph in Relate to find conflicts with other open jobs, shows the path that proves each one, and refuses to say CLEAR when it cannot know.</p>
 <p class="links"><a href="https://github.com/loksai-codes/blind-flange">Source code</a>
 <a href="report-PTW-2201.html">Sample evidence report</a>
-<a href="agent-session.md">Agent session</a>
-<a href="SPEC.md">Specification</a></p>
+<a href="https://github.com/loksai-codes/blind-flange/blob/main/docs/agent-session.md">Agent session</a>
+<a href="https://github.com/loksai-codes/blind-flange/blob/main/docs/SPEC.md">Specification</a></p>
 <p class="warn">Decision support only. Not a safety system. Not reviewed by a process safety engineer. Both plants are illustrative.</p>
 
 <h2>The problem</h2>
@@ -97,7 +97,7 @@ OPTIONAL MATCH (q:Permit)-[r:WORKS_ON|RELIES_ON]-&gt;(x)</code></pre>
 <p><code>blindflange mcp</code> serves six tools over the Model Context Protocol, on the Python standard library. There is no tool that approves a permit or changes the plant. We asked Claude Code the same question twice: can train B be restarted?</p>
 <div class="grid">
 <div class="card"><h3>Without the tool</h3><p>It read the permit list, found no direct conflict, and hedged: "verify the P&amp;IDs". It could not name the bypass, because the bypass is not in any permit.</p></div>
-<div class="card"><h3>With the tool</h3><p>One call to <code>assess_change</code>. It answered DO NOT APPROVE and quoted the 12-hop path, noting the route enters through BV-231 rather than the listed isolations. <a href="agent-session.md">Full transcript.</a></p></div>
+<div class="card"><h3>With the tool</h3><p>One call to <code>assess_change</code>. It answered DO NOT APPROVE and quoted the 12-hop path, noting the route enters through BV-231 rather than the listed isolations. <a href="https://github.com/loksai-codes/blind-flange/blob/main/docs/agent-session.md">Full transcript.</a></p></div>
 </div>
 
 <h2>Evidence</h2>
