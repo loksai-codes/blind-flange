@@ -16,6 +16,7 @@ Expected and actual results are `conflict_verdict / assessment_status`. `none` m
 | External painting | condensate | CLEAR / COMPLETE | CLEAR / COMPLETE | PASS | yes | same | - |
 | Pump overhaul on the isolated train | condensate | CLEAR / COMPLETE | CLEAR / COMPLETE | PASS | yes | same | - |
 | Start pump A while it is being overhauled | condensate | BLOCK / COMPLETE | BLOCK / COMPLETE | FLAG | yes | same | - |
+| Second job on a worksite another permit already has open | condensate | HOLD / COMPLETE | HOLD / COMPLETE | FLAG | yes | same | - |
 | Start pump A by changing its state, with no permit | condensate | BLOCK / COMPLETE | BLOCK / COMPLETE | n/a | yes | same | 4 hops |
 | Unrelated permit while a worksite is already exposed | condensate | HOLD / COMPLETE | HOLD / COMPLETE | PASS | yes | same | 6 hops |
 | Close the valve that exposes the worksite | condensate | CLEAR / COMPLETE | CLEAR / COMPLETE | n/a | yes | same | - |
@@ -40,11 +41,11 @@ Expected and actual results are `conflict_verdict / assessment_status`. `none` m
 | Restart compression, bypass last seen closed two days ago | gas_plant | none / INCOMPLETE | none / INCOMPLETE | PASS | yes | same | 12 hops |
 | Restart compression with a search bound shorter than the route | gas_plant | none / INCOMPLETE | none / INCOMPLETE | PASS | yes | same | - |
 
-- Graph check: 33 of 33 cases match the expected verdict, status and finding codes.
-- Risky requests stopped (BLOCK or HOLD expected): graph 17 of 17; tag matching 7 of 14 (permit requests only; it cannot assess a state change).
+- Graph check: 34 of 34 cases match the expected verdict, status and finding codes.
+- Risky requests stopped (BLOCK or HOLD expected): graph 18 of 18; tag matching 8 of 15 (permit requests only; it cannot assess a state change).
 - Safe requests wrongly stopped: graph 0 of 9, tag matching 0 of 9.
-- Oracle agreement on every hazard set: 33 of 33.
-- Recorded evaluations reproduced exactly by replay: 33 of 33.
+- Oracle agreement on every hazard set: 34 of 34.
+- Recorded evaluations reproduced exactly by replay: 34 of 34.
 
 ## Misses
 

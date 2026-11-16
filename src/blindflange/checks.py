@@ -32,6 +32,7 @@ SEVERITY = {
     "ISOLATION_REMOVED": BLOCK,
     "ISOLATION_NOT_IN_PLACE": BLOCK,
     "SHARED_ISOLATION": HOLD,
+    "WORKSITE_SHARED": HOLD,
 }
 
 EXPLAIN = {
@@ -52,6 +53,8 @@ EXPLAIN = {
         "{target} is listed as an isolation but is not confirmed in an isolating state.",
     "SHARED_ISOLATION":
         "{target} is also an isolation for {permit}. It must stay in place until both permits close.",
+    "WORKSITE_SHARED":
+        "{permit} is already working on {target}. Two jobs on one opened item is a dependency to review.",
 }
 
 
@@ -232,7 +235,8 @@ def assess(conn, req: dict, hypothetical: list[dict] | tuple = (), max_hops: int
                              evidence=row["evidence"], path=[row["target"]],
                              uncertain=[row["target"]] if row["uncertain"] else [],
                              message=_message(row["code"], row["target"], other, certainty, INTRODUCED)))
-    direct_keys = {(f.permit, f.target) for f in found}
+    # A BLOCK one-hop finding already explains a path to the same place; a HOLD one does not.
+    direct_keys = {(f.permit, f.target) for f in found if f.severity == BLOCK}
 
     # Sort every pressure exposure after the change by certainty and origin, then
     # group by (permit, target, code) so each hazard is one finding with all its sources.

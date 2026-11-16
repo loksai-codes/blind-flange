@@ -132,3 +132,17 @@ def test_survey_is_empty_at_start_of_shift_and_finds_a_standing_hazard(conn):
     set_now(conn, "EV-1", "open")
     found = checks.survey(conn).findings
     assert [(f.code, f.target, f.origin) for f in found] == [("PRESSURE_REACHES_OPEN_WORK", "E-1", checks.EXISTING)]
+
+
+def test_two_permits_on_the_same_worksite_is_a_hold(conn):
+    r = check(conn, "PTW-0852")
+    assert (r.assessment_status, r.conflict_verdict) == (checks.COMPLETE, checks.HOLD)
+    f = r.findings[0]
+    assert (f.code, f.severity, f.permit, f.target) == ("WORKSITE_SHARED", checks.HOLD, "PTW-0840", "E-1")
+    assert f.evidence == ["PTW-0852 WORKS_ON E-1", "PTW-0840 WORKS_ON E-1"]
+
+
+def test_a_shared_worksite_does_not_soften_a_block(conn):
+    r = check(conn, {"id": "PTW-0853", "works_on": ["E-1"], "operates": [{"tag": "XV-9", "to": "open"}]})
+    assert r.conflict_verdict == checks.BLOCK
+    assert {"WORKSITE_SHARED", "WORKSITE_NOT_ISOLATED"} <= set(codes(r))

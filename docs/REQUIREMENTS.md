@@ -78,7 +78,7 @@ Permit status (authorization) is kept separate from component observed state. Ap
 | FR-05 | Pressure walk stops at barriers | Per-hop filter in a quantified path pattern | DONE | `queries/exposures.cypher`; `test_rule1_walk_stops_at_closed_valves_and_installed_blinds` |
 | FR-06 | Before/after reachability comparison | Hazards caused by a change are identified | DONE | `checks.assess`; `hazards.introduced` |
 | FR-07 | Existing, introduced and remaining hazards reported separately | `check` lists all three | DONE | `Result.hazards` (also `resolved`); `test_rule5_*` |
-| FR-08 | Finding codes with verdicts | Each code produced and asserted by a test | DONE | Eight codes in `checks.SEVERITY`; each asserted by code in `tests/test_checks.py`, `tests/test_rules.py` |
+| FR-08 | Finding codes with verdicts | Each code produced and asserted by a test | DONE | Nine codes in `checks.SEVERITY`; each asserted by code in `tests/test_checks.py`, `tests/test_rules.py` |
 | FR-09 | Starting or energising equipment is a new live pressure source on every path, including `set` | `set P-A in_service` is BLOCK | DONE | `test_starting_equipment_by_a_state_change_is_blocked`, `test_set_refuses_a_blocked_change_and_writes_nothing` |
 | FR-10 | Two fields: `assessment_status` and `conflict_verdict` | Both returned by every interface | DONE | `checks.Result`; CLI text and `--json`; MCP `structuredContent`; `test_check_json_has_both_result_fields` |
 | FR-11 | A component with no state is UNKNOWN, never a barrier; unknown or stale state yields INCOMPLETE when relevant | Test per rule 3 | DONE | `test_rule3_*` (four tests) |
@@ -142,7 +142,7 @@ Each finding also carries `certainty`:
 - BLOCK can coexist with INCOMPLETE.
 - A POSSIBLE finding never sets `conflict_verdict` on its own. It makes the assessment INCOMPLETE (severity UNCONFIRMED).
 - BLOCK: pressure reaches open work; pressure reaches an untested temporary blind another permit relies on; pressure reaches an open end; own worksite not isolated; energising a worksite another permit is on; isolation removed; isolation not in place.
-- HOLD: one isolation shared by two permits; a proven existing hazard that the request leaves in place.
+- HOLD: one isolation shared by two permits; two permits working on the same component (WORKSITE_SHARED); a proven existing hazard that the request leaves in place.
 
 Modeling rules (each has at least one test in `tests/test_rules.py`):
 

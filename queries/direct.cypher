@@ -21,6 +21,11 @@ WHERE q.id <> p.id
 RETURN 'SHARED_ISOLATION' AS code, q.id AS permit, q.title AS title, v.tag AS target, false AS uncertain,
        [p.id + ' RELIES_ON ' + v.tag, q.id + ' RELIES_ON ' + v.tag] AS evidence
 UNION
+MATCH (p:Permit {id: $id})-[:WORKS_ON]->(v:Component)<-[:WORKS_ON]-(q:Permit {status: 'active'})
+WHERE q.id <> p.id
+RETURN 'WORKSITE_SHARED' AS code, q.id AS permit, q.title AS title, v.tag AS target, false AS uncertain,
+       [p.id + ' WORKS_ON ' + v.tag, q.id + ' WORKS_ON ' + v.tag] AS evidence
+UNION
 MATCH (p:Permit {id: $id})-[:RELIES_ON]->(v:Component)
 WHERE NOT coalesce(v.state, 'unknown') IN ['closed', 'installed']
    OR coalesce(v.observed_at, '') < $stale_before OR v.planned_state IS NOT NULL

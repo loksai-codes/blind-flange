@@ -73,6 +73,12 @@ cases:
     expect: BLOCK
     codes: [ENERGISES_WORKSITE, ISOLATION_REMOVED]
     note: The obvious clash. Tag matching catches this one too.
+  - name: Second job on a worksite another permit already has open
+    scenario: condensate
+    request: PTW-0852
+    expect: HOLD
+    codes: [WORKSITE_SHARED]
+    note: The cooler is isolated, but two crews on one opened item is a dependency to review.
   - name: Start pump A by changing its state, with no permit
     scenario: condensate
     request: {set: [P-A, in_service]}

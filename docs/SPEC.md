@@ -73,6 +73,7 @@ pressure source whose state is unknown or stale also counts.
 | ISOLATION_REMOVED | BLOCK | The request opens or removes a component another permit relies on. | One hop each side. `direct.cypher` |
 | ISOLATION_NOT_IN_PLACE | BLOCK | A listed isolation is not confirmed closed or installed. | Property check. `direct.cypher` |
 | SHARED_ISOLATION | HOLD | The same isolation protects two permits. | One hop each side. `direct.cypher` |
+| WORKSITE_SHARED | HOLD | Another active permit already works on the same component. A modeled dependency that requires review. | One hop each side. `direct.cypher` |
 
 Each finding also has an `origin` and a `certainty`, which set its effect:
 

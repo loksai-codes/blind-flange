@@ -1,0 +1,5 @@
+id: PTW-0852
+title: Inspect cooler E-1 tube sheet
+kind: maintenance
+description: Visual inspection of the E-1 tube sheet while the cooler is open for the bundle clean.
+works_on: [E-1]
