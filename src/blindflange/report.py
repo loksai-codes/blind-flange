@@ -174,9 +174,11 @@ def _path_svg(path: list[str], comps: dict, adj: dict, uncertain: set) -> str:
     return "".join(out)
 
 
-def evaluation_html(e: dict) -> str:
-    result, snap, req = e["result"], e["snapshot"], e["request"]
-    comps = {c["tag"]: dict(c) for c in snap["components"]}
+def assessed_components(e: dict) -> dict:
+    """Components as the evaluation assessed them: its snapshot with the request's and
+    the what-if's changes applied. A changed component keeps its old state in 'was'."""
+    req = e["request"]
+    comps = {c["tag"]: dict(c) for c in e["snapshot"]["components"]}
     changes = list(req.get("hypothetical", []))
     if req.get("type") == "change":
         changes += req.get("changes", [])
@@ -187,6 +189,12 @@ def evaluation_html(e: dict) -> str:
         c = comps.get(ch.get("tag"))
         if c and c.get("state") != ch.get("to"):
             c["was"], c["state"] = c.get("state") or "unknown", ch["to"]
+    return comps
+
+
+def evaluation_html(e: dict) -> str:
+    result, snap, req = e["result"], e["snapshot"], e["request"]
+    comps = assessed_components(e)
     snap = dict(snap, components=list(comps.values()))
     adj: dict[str, list[str]] = {t: [] for t in comps}
     for a, b, *_ in snap["connections"]:

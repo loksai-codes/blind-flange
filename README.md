@@ -146,13 +146,13 @@ The last command prints the BLOCK result shown at the top of this page. Every as
 
 Every assessment returns two fields. `assessment_status` is COMPLETE, INCOMPLETE or ERROR. `conflict_verdict` is BLOCK, HOLD, CLEAR, or none when it cannot say. Exit codes: 0 CLEAR or HOLD, 1 error, 2 BLOCK or refused, 3 incomplete with no verdict.
 
-**For an agent.** `python -m blindflange mcp --store gas.work.rl` serves six tools over the Model Context Protocol: `assess_change`, `what_if`, `reach`, `handover`, `find_tags` and `get_evaluation`. It uses the standard library only. An agent can read a permit written in plain words, find the tags, and ask. The verdict comes from the same evaluator as the CLI. There is no tool to approve a permit or change plant state. For Claude Code:
+**For an agent.** `python -m blindflange mcp --store gas.work.rl` serves eight tools over the Model Context Protocol, on the standard library only. Two give a verdict: `assess_change` and `what_if`. Six are read-only and let an agent explore the graph instead of only receiving a verdict: `trace_path` (the proven, possible and physical route between two components, with the barriers on it), `explain_finding` (a recorded finding step by step, with the barriers beside each step), `reach`, `handover`, `find_tags` and `get_evaluation`. The verdict comes from the same evaluator as the CLI. There is no tool to approve a permit or change plant state. For Claude Code:
 
 ```
 claude mcp add blindflange -- python -m blindflange mcp --store gas.work.rl
 ```
 
-[`docs/agent-session.md`](docs/agent-session.md) records Claude Code asked "can train B be restarted?" with and without the tool. Without it, the agent found no direct conflict and hedged. With it, the agent made one `assess_change` call, refused, and quoted the 12-hop path.
+[`docs/agent-session.md`](docs/agent-session.md) records Claude Code asked "can train B be restarted?" with and without the tools. Without them, the agent found no direct conflict and asked for the drawings. With them, it called `assess_change` (BLOCK, the 12-hop path), then `explain_finding` to check which isolation the route gets around, and named XV-231, closed beside the path while the bypass BV-231 is open.
 
 For development, inside the virtual environment:
 
@@ -190,7 +190,7 @@ Both plants are illustrative and were written for this project. The condensate u
 
 ## Results
 
-See `eval/results.md` and `docs/stats.json` (both generated; `python scripts/stats.py` refreshes the numbers on this page). On <!--stat:eval_cases-->35<!--/stat--> author-written cases across both plants, the graph check gives the expected verdict, assessment status and finding codes in <!--stat:eval_matched-->35<!--/stat-->. <!--stat:eval_no_verdict-->8<!--/stat--> of those cases expect "cannot say" or an error, and get it. Tag matching stops <!--stat:tag_matching_stopped-->8 of 15<!--/stat--> risky permit requests; it cannot assess a plain state change at all. An independent breadth-first walk (`eval/oracle.py`), written from the spec rather than from the Cypher, agrees with the graph on every hazard set in <!--stat:oracle_agreed-->35<!--/stat--> cases and on <!--stat:random_plants-->120<!--/stat--> random plants in the tests. <!--stat:replay_same-->35<!--/stat--> recorded evaluations replay to the same result. <!--stat:tests_passed-->259<!--/stat--> automated tests pass, and <!--stat:mutations_caught_text-->12 of 12<!--/stat--> deliberate mutations of the checks (`scripts/mutations.py`) are caught by at least one test. CI runs the install, the tests and the eval on Linux, macOS and Windows.
+See `eval/results.md` and `docs/stats.json` (both generated; `python scripts/stats.py` refreshes the numbers on this page). On <!--stat:eval_cases-->35<!--/stat--> author-written cases across both plants, the graph check gives the expected verdict, assessment status and finding codes in <!--stat:eval_matched-->35<!--/stat-->. <!--stat:eval_no_verdict-->8<!--/stat--> of those cases expect "cannot say" or an error, and get it. Tag matching stops <!--stat:tag_matching_stopped-->8 of 15<!--/stat--> risky permit requests; it cannot assess a plain state change at all. An independent breadth-first walk (`eval/oracle.py`), written from the spec rather than from the Cypher, agrees with the graph on every hazard set in <!--stat:oracle_agreed-->35<!--/stat--> cases and on <!--stat:random_plants-->120<!--/stat--> random plants in the tests. <!--stat:replay_same-->35<!--/stat--> recorded evaluations replay to the same result. <!--stat:tests_passed-->263<!--/stat--> automated tests pass, and <!--stat:mutations_caught_text-->12 of 12<!--/stat--> deliberate mutations of the checks (`scripts/mutations.py`) are caught by at least one test. CI runs the install, the tests and the eval on Linux, macOS and Windows.
 
 These cases show what the checks do. They were written by the author, and they are not evidence of field performance.
 

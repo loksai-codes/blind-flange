@@ -65,6 +65,22 @@ TOOLS = [
      "description": "Find equipment tags from free text, e.g. 'pump A relief valve'.",
      "inputSchema": {"type": "object", "properties": {"text": {"type": "string"}},
                      "required": ["text"], "additionalProperties": False}},
+    {"name": "trace_path",
+     "description": ("Explore the graph: the route between two components read three ways. 'proven' passes "
+                     "only components whose state is known and current; 'possible' also passes unconfirmed "
+                     "ones and runs against declared flow; 'physical' follows any connection and lists the "
+                     "barriers (closed valves, installed blinds, removed items) on the way. A null route means "
+                     "there is none under that reading. Read-only."),
+     "inputSchema": {"type": "object", "properties": {"from": {"type": "string"}, "to": {"type": "string"}},
+                     "required": ["from", "to"], "additionalProperties": False}},
+    {"name": "explain_finding",
+     "description": ("Explain one finding of a recorded evaluation step by step: each component on its path "
+                     "with the state used, whether the request changed it, and the barriers holding beside "
+                     "it. 'finding' is its number (1 = first) or its code. Read-only."),
+     "inputSchema": {"type": "object", "properties": {
+         "evaluation_id": {"type": "string"},
+         "finding": {"anyOf": [{"type": "integer", "minimum": 1}, {"type": "string"}]}},
+         "required": ["evaluation_id", "finding"], "additionalProperties": False}},
     {"name": "get_evaluation",
      "description": "Fetch a recorded Evaluation by id (e.g. EVAL-3), and whether replaying it reproduces it.",
      "inputSchema": {"type": "object", "properties": {"id": {"type": "string"}},
@@ -135,6 +151,55 @@ def call(store_path: str, name: str, args: dict) -> dict:
             return {"matches": store.run(conn, "find", q=" OR ".join(words))}
         finally:
             conn.close()
+    if name == "trace_path":
+        conn = store.connect(store_path, read_only=True)
+        try:
+            for key in ("from", "to"):
+                store.component(conn, args.get(key, ""))
+            stale = store.stale_before(store.info(conn))
+            routes = {}
+            for mode in ("proven", "possible", "physical"):
+                got = store.rows(conn, store.query("trace"), **{"from": args["from"], "to": args["to"],
+                                                                 "mode": mode, "stale_before": stale})
+                routes[mode] = got[0] if got else None
+        finally:
+            conn.close()
+        return {"from": args["from"], "to": args["to"], **routes}
+    if name == "explain_finding":
+        from . import report
+        conn = store.connect(store_path, read_only=True)
+        try:
+            e = store.get_evaluation(conn, args.get("evaluation_id", ""))
+        finally:
+            conn.close()
+        findings = e["result"].get("findings", [])
+        which = args.get("finding")
+        if isinstance(which, int) and 1 <= which <= len(findings):
+            f = findings[which - 1]
+        else:
+            f = next((x for x in findings if x["code"] == which), None)
+        if f is None:
+            raise ToolError(f"no finding {which!r} in {e['id']} (it has {len(findings)})")
+        comps = report.assessed_components(e)
+        adj: dict[str, list[str]] = {t: [] for t in comps}
+        for a, b, *_ in e["snapshot"]["connections"]:
+            adj[a].append(b)
+            adj[b].append(a)
+        on_path = set(f.get("path", []))
+        steps = []
+        for tag in f.get("path", []):
+            c = comps[tag]
+            steps.append({"tag": tag, "kind": c["kind"], "name": c.get("name"), "state": c.get("state") or "unknown",
+                          "observed_at": c.get("observed_at"), "changed_by_request": "was" in c,
+                          "unconfirmed": tag in f.get("uncertain", []),
+                          "barriers_beside": [{"tag": b, "state": comps[b].get("state")} for b in sorted(adj[tag])
+                                              if b not in on_path and comps[b].get("state") in ("closed", "installed")]})
+        result = e["result"]
+        return {"evaluation_id": e["id"], "assessment_status": result["assessment_status"],
+                "conflict_verdict": result["conflict_verdict"], "code": f["code"], "verdict": f["severity"],
+                "origin": f["origin"], "certainty": f["certainty"], "message": f["message"],
+                "other_permit": f.get("permit"), "steps": steps, "evidence": f.get("evidence", []),
+                "against_flow": f.get("against_flow", []), "incomplete_reasons": result.get("incomplete_reasons", [])}
     if name == "get_evaluation":
         conn = store.connect(store_path, read_only=True)
         try:
