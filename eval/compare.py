@@ -1,65 +1,132 @@
-"""Compare the graph checks with plain tag matching on eval/cases.yaml.
+"""Run eval/cases.yaml through the evaluator and compare with two baselines.
 
-Tag matching flags a request when it shares an equipment tag with an active
-permit. It cannot tell HOLD from BLOCK, so any flag counts as "stopped".
-Run:  python eval/compare.py     (writes eval/results.md)
+- Tag matching: flags a request that names a component an active permit also
+  names. It cannot tell HOLD from BLOCK, so any flag counts as "stopped".
+- Oracle: eval/oracle.py, an independent breadth-first walk written from the
+  spec. It recomputes every hazard set from the recorded Evaluation; the column
+  says whether the graph agrees with it.
+
+Every miss is listed. Run:  python eval/compare.py     (writes eval/results.md)
 """
 from pathlib import Path
 import sys
 import time
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from blindflange import checks, store  # noqa: E402
-
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent / "src"))
+sys.path.insert(0, str(HERE))
+from blindflange import checks, store  # noqa: E402
+import oracle  # noqa: E402
+
 PERMITS = HERE.parent / "data" / "permits"
 
 
-def run_case(scenario: Path, case: dict) -> dict:
-    conn = store.build(scenario)
-    for step in case.get("setup", []):
-        if "set" in step:
-            with store.transaction(conn, commit=True):
-                store.set_state(conn, *step["set"])
-        elif "approve" in step:
-            checks.check(conn, store.load_permit(PERMITS / f"{step['approve']}.yaml"), approve=True)
-    t0 = time.perf_counter()
-    r = checks.check(conn, store.load_permit(PERMITS / f"{case['request']}.yaml"))
-    ms = (time.perf_counter() - t0) * 1000
-    conn.close()
-    hops = max((len(f.path) - 1 for f in r.findings if f.path), default=0)
-    return {"name": case["name"], "expect": case["expect"], "graph": r.verdict,
-            "tags": "FLAG" if r.baseline_shared_tags else "PASS", "hops": hops, "ms": ms}
+def _verdict(r: checks.Result) -> str:
+    return r.conflict_verdict or "none"
+
+
+def _permit(pid: str) -> dict:
+    return store.load_permit(PERMITS / f"{pid}.yaml")
+
+
+def run_case(scenarios: dict, case: dict) -> dict:
+    conn = store.build(scenarios[case["scenario"]])
+    info = store.info(conn)
+    try:
+        for step in case.get("setup", []):
+            if "set" in step:
+                tag, state = step["set"]
+                with store.write(conn):
+                    store.set_state(conn, tag, state, info["as_of"], "eval setup")
+            elif "observe" in step:
+                tag, state, when = step["observe"]
+                with store.write(conn):
+                    store.set_state(conn, tag, state, store.timestamp(when), "eval setup")
+            elif "approve" in step:
+                r, written = checks.approve(conn, _permit(step["approve"]))
+                if not written:
+                    raise SystemExit(f"case {case['name']!r}: setup approve {step['approve']} was {r.verdict}")
+        req = case["request"]
+        request = checks.change_request(checks.parse_changes([f"{t}={s}" for t, s in [req["set"]]])) \
+            if isinstance(req, dict) else checks.permit_request(_permit(req))
+        t0 = time.perf_counter()
+        r = checks.evaluate(conn, request, max_hops=case.get("max_hops"))
+        ms = (time.perf_counter() - t0) * 1000
+        evaluation = store.get_evaluation(conn, r.evaluation_id)
+        replay_same = checks.replay(conn, r.evaluation_id)[2]
+    finally:
+        conn.close()
+    expect_status = case.get("status", "COMPLETE")
+    expect_verdict = str(case["expect"]) if case["expect"] is not None else "none"
+    codes = {f.code for f in r.findings}
+    missing_codes = sorted(set(case.get("codes", [])) - codes)
+    hops = max((len(f.path) - 1 for f in r.findings), default=0)
+    return {
+        "name": case["name"], "plant": case["scenario"],
+        "expect": f"{expect_verdict} / {expect_status}", "graph": f"{_verdict(r)} / {r.assessment_status}",
+        "ok": _verdict(r) == expect_verdict and r.assessment_status == expect_status and not missing_codes,
+        "missing_codes": missing_codes, "expect_verdict": expect_verdict,
+        "tags": ("FLAG" if r.baseline_shared_tags else "PASS") if request["type"] == "permit" else "n/a",
+        "oracle": oracle.agrees(evaluation), "replay": replay_same, "hops": hops, "ms": ms,
+        "codes": sorted(codes),
+    }
 
 
 def main() -> int:
     spec = store.load_yaml(HERE / "cases.yaml")
-    rows = [run_case(HERE / spec["scenario"], c) for c in spec["cases"]]
-    risky = [r for r in rows if r["expect"] != "CLEAR"]
-    clean = [r for r in rows if r["expect"] == "CLEAR"]
-    g_ok = sum(r["graph"] == r["expect"] for r in rows)
+    scenarios = {k: (HERE / v).resolve() for k, v in spec["scenarios"].items()}
+    rows = [run_case(scenarios, c) for c in spec["cases"]]
+    risky = [r for r in rows if r["expect_verdict"] in ("BLOCK", "HOLD")]
+    clean = [r for r in rows if r["expect_verdict"] == "CLEAR"]
+    permit_risky = [r for r in risky if r["tags"] != "n/a"]
+    ok = sum(r["ok"] for r in rows)
     out = ["# Eval results", "",
            "Generated by `python eval/compare.py`. Do not edit by hand.", "",
-           "| Case | Expected | Graph check | Tag matching | Longest path |",
-           "| --- | --- | --- | --- | --- |"]
+           "Expected and actual results are `conflict_verdict / assessment_status`. "
+           "`none` means no verdict could be given.", "",
+           "| Case | Plant | Expected | Graph check | Tag matching | Oracle agrees | Replay | Longest path |",
+           "| --- | --- | --- | --- | --- | --- | --- | --- |"]
     for r in rows:
-        out.append(f"| {r['name']} | {r['expect']} | {r['graph']} | {r['tags']} | "
+        mark = "" if r["ok"] else " **MISS**"
+        out.append(f"| {r['name']} | {r['plant']} | {r['expect']} | {r['graph']}{mark} | {r['tags']} | "
+                   f"{'yes' if r['oracle'] else '**no**'} | {'same' if r['replay'] else '**differs**'} | "
                    f"{str(r['hops']) + ' hops' if r['hops'] else '-'} |")
+    stopped = lambda rs, key: sum(r[key] for r in rs)  # noqa: E731
     out += ["",
-            f"- Graph check: {g_ok} of {len(rows)} verdicts correct.",
-            f"- Risky requests stopped: graph {sum(r['graph'] != 'CLEAR' for r in risky)} of {len(risky)}, "
-            f"tag matching {sum(r['tags'] == 'FLAG' for r in risky)} of {len(risky)}.",
-            f"- Safe requests wrongly stopped: graph {sum(r['graph'] != 'CLEAR' for r in clean)} of {len(clean)}, "
+            f"- Graph check: {ok} of {len(rows)} cases match the expected verdict, status and finding codes.",
+            f"- Risky requests stopped (BLOCK or HOLD expected): graph "
+            f"{sum(r['graph'].split(' / ')[0] in ('BLOCK', 'HOLD') for r in risky)} of {len(risky)}; "
+            f"tag matching {sum(r['tags'] == 'FLAG' for r in permit_risky)} of {len(permit_risky)} "
+            f"(permit requests only; it cannot assess a state change).",
+            f"- Safe requests wrongly stopped: graph "
+            f"{sum(r['graph'].split(' / ')[0] != 'CLEAR' for r in clean)} of {len(clean)}, "
             f"tag matching {sum(r['tags'] == 'FLAG' for r in clean)} of {len(clean)}.",
-            f"- Median check time: {sorted(r['ms'] for r in rows)[len(rows) // 2]:.1f} ms on a "
-            f"35-component plant.",
-            "",
-            "These cases were written by the project author on an illustrative plant. "
+            f"- Oracle agreement on every hazard set: {stopped(rows, 'oracle')} of {len(rows)}.",
+            f"- Recorded evaluations reproduced exactly by replay: {stopped(rows, 'replay')} of {len(rows)}.",
+            f"- Median assessment time (including recording): "
+            f"{sorted(r['ms'] for r in rows)[len(rows) // 2]:.0f} ms.",
+            "", "## Misses", ""]
+    misses = [r for r in rows if not r["ok"] or not r["oracle"] or not r["replay"]]
+    if not misses:
+        out.append("None.")
+    for r in misses:
+        why = []
+        if not r["ok"]:
+            why.append(f"expected {r['expect']}, got {r['graph']}")
+        if r["missing_codes"]:
+            why.append(f"missing codes {', '.join(r['missing_codes'])} (got {', '.join(r['codes']) or 'none'})")
+        if not r["oracle"]:
+            why.append("oracle disagrees")
+        if not r["replay"]:
+            why.append("replay differs")
+        out.append(f"- {r['name']}: {'; '.join(why)}")
+    out += ["",
+            "These cases were written by the project author on illustrative plants. "
             "They show what the checks do. They are not evidence of field performance."]
     text = "\n".join(out) + "\n"
     (HERE / "results.md").write_text(text, encoding="utf-8", newline="\n")
     print(text)
-    return 0 if g_ok == len(rows) else 1
+    return 0 if not misses else 1
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ description = "Permit-to-work conflict checks over a plant piping graph, on Rela
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
-dependencies = ["relate-db>=1.0.1", "pyyaml>=6"]
+dependencies = ["relate-db==1.0.1", "pyyaml>=6"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]

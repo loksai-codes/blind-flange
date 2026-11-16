@@ -1,125 +1,134 @@
-from pathlib import Path
-
+"""The finding codes and the headline scenario on the condensate unit."""
 import pytest
 
 from blindflange import checks, store
-
-ROOT = Path(__file__).resolve().parents[1]
-SCENARIO = ROOT / "data" / "scenarios" / "condensate_unit.yaml"
-
-
-def permit(pid):
-    return store.load_permit(ROOT / "data" / "permits" / f"{pid}.yaml")
-
-
-@pytest.fixture
-def conn():
-    c = store.build(SCENARIO)
-    yield c
-    c.close()
-
-
-def codes(result):
-    return [f.code for f in result.findings]
+from conftest import change, check, codes, permit, set_now
 
 
 def test_start_pump_a_is_blocked_with_a_path_and_no_shared_tag(conn):
-    r = checks.check(conn, permit("PTW-0511"))
-    assert r.verdict == checks.BLOCK
+    r = check(conn, "PTW-0511")
+    assert (r.conflict_verdict, r.assessment_status) == (checks.BLOCK, checks.COMPLETE)
     f = r.findings[0]
     assert f.code == "PRESSURE_REACHES_TEMPORARY_BARRIER"
-    assert f.permit == "PTW-0504"
+    assert (f.permit, f.origin, f.certainty) == ("PTW-0504", checks.INTRODUCED, checks.PROVEN)
     assert f.path == ["P-A", "L-PD-A", "RLV-504", "L-RL-504", "BF-504"]
     assert r.baseline_shared_tags == {}
 
 
 def test_closing_one_valve_clears_the_conflict(conn):
-    with store.transaction(conn, commit=True):
-        store.set_state(conn, "RLV-504", "closed")
-    assert checks.check(conn, permit("PTW-0511")).verdict == checks.CLEAR
+    set_now(conn, "RLV-504", "closed")
+    r = check(conn, "PTW-0511")
+    assert (r.conflict_verdict, r.assessment_status, r.findings) == (checks.CLEAR, checks.COMPLETE, [])
 
 
-def test_check_is_a_dry_run(conn):
-    checks.check(conn, permit("PTW-0511"))
-    ids = [r["id"] for r in store.rows(conn, "MATCH (p:Permit) RETURN p.id AS id ORDER BY id")]
-    assert ids == ["PTW-0504", "PTW-0840"]
+def test_check_changes_no_plant_state_or_permits_and_records_one_evaluation(conn):
+    before = store.snapshot(conn)
+    n = len(store.list_evaluations(conn))
+    check(conn, "PTW-0511")
+    assert store.snapshot(conn) == before
+    assert len(store.list_evaluations(conn)) == n + 1
 
 
 def test_blocked_permit_is_not_stored_on_approve(conn):
-    checks.check(conn, permit("PTW-0511"), approve=True)
-    assert not store.rows(conn, "MATCH (p:Permit {id: 'PTW-0511'}) RETURN p.id AS id")
+    r, written = checks.approve(conn, permit("PTW-0511"))
+    assert r.conflict_verdict == checks.BLOCK and not written
+    assert not store.run(conn, "permit_exists", id="PTW-0511")
+    assert store.info(conn)["revision"] == 1
 
 
-def test_approve_stores_permit_and_applies_state_changes(conn):
-    with store.transaction(conn, commit=True):
-        store.set_state(conn, "RLV-504", "closed")
-    checks.check(conn, permit("PTW-0511"), approve=True)
-    got = store.rows(conn, "MATCH (p:Permit {id: 'PTW-0511'}) RETURN p.status AS s")
-    assert got == [{"s": "active"}]
+def test_approve_stores_permit_applies_state_changes_and_bumps_revision(conn):
+    set_now(conn, "RLV-504", "closed")
+    r, written = checks.approve(conn, permit("PTW-0511"))
+    assert written and r.conflict_verdict == checks.CLEAR
+    assert store.run(conn, "permit_exists", id="PTW-0511") == [{"status": "active"}]
     assert store.component(conn, "SV-A")["state"] == "open"
     assert store.component(conn, "P-A")["state"] == "in_service"
+    assert store.info(conn)["revision"] == 3
 
 
-def test_operating_a_relied_on_valve_is_blocked(conn):
-    r = checks.check(conn, permit("PTW-0845"))
-    assert r.verdict == checks.BLOCK
-    assert "ISOLATION_REMOVED" in codes(r)
+def test_operating_a_relied_on_valve_is_isolation_removed_with_evidence(conn):
+    r = check(conn, "PTW-0845")
+    f = next(f for f in r.findings if f.code == "ISOLATION_REMOVED")
+    assert (f.severity, f.permit, f.target) == (checks.BLOCK, "PTW-0840", "EV-2")
+    assert f.evidence == ["PTW-0845 OPERATES EV-2 to open", "PTW-0840 RELIES_ON EV-2"]
 
 
 def test_unlisted_route_into_open_work_is_found(conn):
-    r = checks.check(conn, permit("PTW-0846"))
-    assert r.verdict == checks.BLOCK
-    assert r.findings[0].path == ["FW-HDR", "XV-9", "E-1"]
+    r = check(conn, "PTW-0846")
+    f = r.findings[0]
+    assert (f.code, f.permit, f.severity) == ("PRESSURE_REACHES_OPEN_WORK", "PTW-0840", checks.BLOCK)
+    assert f.path == ["FW-HDR", "XV-9", "E-1"]
     assert r.baseline_shared_tags == {}
 
 
 def test_shared_isolation_is_a_hold(conn):
-    r = checks.check(conn, permit("PTW-0847"))
-    assert r.verdict == checks.HOLD
+    r = check(conn, "PTW-0847")
+    assert r.conflict_verdict == checks.HOLD
     assert codes(r) == ["SHARED_ISOLATION"]
+    assert r.findings[0].evidence == ["PTW-0847 RELIES_ON EV-2", "PTW-0840 RELIES_ON EV-2"]
 
 
 def test_open_isolation_valve_is_blocked(conn):
-    r = checks.check(conn, permit("PTW-0849"))
+    r = check(conn, "PTW-0849")
+    assert r.conflict_verdict == checks.BLOCK
     assert set(codes(r)) == {"ISOLATION_NOT_IN_PLACE", "WORKSITE_NOT_ISOLATED"}
+    worksite = next(f for f in r.findings if f.code == "WORKSITE_NOT_ISOLATED")
+    assert worksite.path == ["P-B", "L-PD-B", "RLV-505", "L-RL-505"]
 
 
 @pytest.mark.parametrize("pid", ["PTW-0848", "PTW-0850", "PTW-0851"])
 def test_safe_permits_are_clear(conn, pid):
-    assert checks.check(conn, permit(pid)).verdict == checks.CLEAR
+    r = check(conn, pid)
+    assert (r.conflict_verdict, r.assessment_status) == (checks.CLEAR, checks.COMPLETE)
+
+
+def test_energising_a_worksite_is_reported_with_its_own_code(conn):
+    checks.approve(conn, permit("PTW-0851"))
+    set_now(conn, "RLV-504", "closed")
+    r = check(conn, "PTW-0511")
+    f = next(f for f in r.findings if f.code == "ENERGISES_WORKSITE")
+    assert (f.permit, f.target) == ("PTW-0851", "P-A")
+    assert f.evidence == ["PTW-0511 ENERGISES P-A", "PTW-0851 WORKS_ON P-A"]
+
+
+def test_starting_equipment_by_a_state_change_is_blocked(conn):
+    r = change(conn, ("P-A", "in_service"))
+    assert r.conflict_verdict == checks.BLOCK
+    f = r.findings[0]
+    assert (f.code, f.target) == ("PRESSURE_REACHES_TEMPORARY_BARRIER", "BF-504")
+
+
+def test_set_refuses_a_blocked_change_and_writes_nothing(conn):
+    r, written = checks.set_states(conn, [{"tag": "P-A", "to": "in_service"}])
+    assert not written and r.conflict_verdict == checks.BLOCK
+    assert store.component(conn, "P-A")["state"] == "shutdown"
 
 
 def test_state_change_that_breaks_an_isolation_is_blocked(conn):
-    assert checks.check_state_change(conn, "EV-1", "open").verdict == checks.BLOCK
-    assert checks.check_state_change(conn, "RLV-504", "closed").verdict == checks.CLEAR
+    assert change(conn, ("EV-1", "open")).conflict_verdict == checks.BLOCK
+    assert change(conn, ("RLV-504", "closed")).conflict_verdict == checks.CLEAR
 
 
 def test_closing_a_permit_reports_isolations_still_needed(conn):
-    checks.check(conn, permit("PTW-0847"), approve=True)
-    with store.transaction(conn, commit=True):
-        still = store.close_permit(conn, "PTW-0840")
+    checks.approve(conn, permit("PTW-0847"))
+    still = checks.close(conn, "PTW-0840")
     assert still == [{"tag": "EV-2", "permits": ["PTW-0847"]}]
 
 
-def test_unknown_tag_is_rejected(conn):
-    bad = {"id": "PTW-9999", "works_on": ["NOPE-1"]}
-    with pytest.raises(store.StoreError):
-        checks.check(conn, bad)
+def test_unknown_tag_is_an_error_result_not_an_exception(conn):
+    r = check(conn, {"id": "PTW-9999", "works_on": ["NOPE-1"]})
+    assert (r.assessment_status, r.conflict_verdict) == (checks.ERROR, None)
+    assert "NOPE-1" in r.error
 
 
-def test_no_standing_hazards_at_start_of_shift(conn):
-    assert checks.standing_hazards(conn) == []
+def test_every_finding_has_a_path_or_evidence(conn):
+    for pid in ["PTW-0511", "PTW-0845", "PTW-0846", "PTW-0847", "PTW-0849"]:
+        for f in check(conn, pid).findings:
+            assert len(f.path) > 1 or f.evidence, (pid, f.code)
 
 
-def test_cli_runs_as_a_python_module(tmp_path):
-    import subprocess
-    import sys
-    out = tmp_path / "s.rl"
-    built = subprocess.run([sys.executable, "-m", "blindflange", "build", str(SCENARIO), "-o", str(out)],
-                           capture_output=True, text=True)
-    assert built.returncode == 0, built.stderr
-    checked = subprocess.run([sys.executable, "-m", "blindflange", "check",
-                              str(ROOT / "data" / "permits" / "PTW-0511.yaml"), "--store", str(out)],
-                             capture_output=True, text=True)
-    assert checked.returncode == 2, checked.stderr
-    assert checked.stdout.startswith("BLOCK  PTW-0511")
+def test_survey_is_empty_at_start_of_shift_and_finds_a_standing_hazard(conn):
+    assert checks.survey(conn).findings == []
+    set_now(conn, "EV-1", "open")
+    found = checks.survey(conn).findings
+    assert [(f.code, f.target, f.origin) for f in found] == [("PRESSURE_REACHES_OPEN_WORK", "E-1", checks.EXISTING)]

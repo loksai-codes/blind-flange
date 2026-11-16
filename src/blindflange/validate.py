@@ -1,4 +1,4 @@
-"""Check plant, scenario and permit YAML before anything is written to a store.
+"""Check plant, scenario, permit and state-change input before anything is written.
 
 Each function returns a list of problems in plain words. An empty list means
 the input is usable. Problems name the item by position and tag so they can be
@@ -8,14 +8,19 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from .model import INTEGRITY, KINDS, RELATIONS, STATES
+from .model import INTEGRITY, KINDS, MAX_HOPS_LIMIT, RELATIONS, STATES, UNKNOWN
 
 PLANT_KEYS = {"unit", "description", "components", "connections"}
-COMPONENT_KEYS = {"tag", "kind", "name", "state", "normal", "source", "integrity"}
-SCENARIO_KEYS = {"plant", "description", "as_of", "permits"}
+COMPONENT_KEYS = {"tag", "kind", "name", "state", "normal", "pressure_source", "integrity",
+                  "observed_at", "observed_by"}
+SCENARIO_KEYS = {"plant", "description", "as_of", "max_observation_age_hours", "observations", "permits"}
+OBSERVATION_KEYS = {"tag", "state", "observed_at", "observed_by"}
 PERMIT_KEYS = {"id", "title", "kind", "description", "works_on", "relies_on", "energises", "operates"}
 SCENARIO_PERMIT_KEYS = PERMIT_KEYS | {"status", "approved_at"}
 OPERATE_KEYS = {"tag", "to"}
+
+AMBIGUOUS_BLIND = ("'removed' is ambiguous for a blind (the blind, or the spool it closes?). "
+                   "Use installed or not_installed")
 
 
 def _choices(values) -> str:
@@ -28,10 +33,14 @@ def _text(value) -> bool:
 
 def _unknown_keys(item: dict, allowed: set, where: str) -> list[str]:
     extra = sorted(set(item) - allowed, key=str)
-    return [f"{where}: unknown field '{k}' (allowed: {_choices(allowed)})" for k in extra]
+    out = []
+    for k in extra:
+        hint = " ('source' is now 'pressure_source')" if k == "source" else ""
+        out.append(f"{where}: unknown field '{k}'{hint} (allowed: {_choices(allowed)})")
+    return out
 
 
-def _timestamp(value) -> bool:
+def is_timestamp(value) -> bool:
     if isinstance(value, datetime):
         return True
     if not isinstance(value, str):
@@ -41,6 +50,19 @@ def _timestamp(value) -> bool:
         return True
     except ValueError:
         return False
+
+
+def state_problem(kind: str | None, state, where: str, allow_unknown: bool = True) -> str | None:
+    """Why `state` is not valid for a component of `kind`, or None if it is."""
+    if kind not in KINDS:
+        return None                                     # reported elsewhere
+    label = KINDS[kind]
+    if label == "Blind" and state == "removed":
+        return f"{where}: {AMBIGUOUS_BLIND}"
+    allowed = STATES[label] if allow_unknown else STATES[label] - {UNKNOWN}
+    if state not in allowed:
+        return f"{where}: state '{state}' is not valid for a {kind} (use {_choices(allowed)})"
+    return None
 
 
 def plant(data) -> list[str]:
@@ -55,7 +77,7 @@ def plant(data) -> list[str]:
     for i, c in enumerate(comps, 1):
         where = f"component {i}"
         if not isinstance(c, dict):
-            problems.append(f"{where}: must be a mapping with tag, kind and state")
+            problems.append(f"{where}: must be a mapping with tag and kind")
             continue
         tag = c.get("tag")
         if not _text(tag):
@@ -74,24 +96,24 @@ def plant(data) -> list[str]:
         if kind not in KINDS:
             problems.append(f"{where}: unknown kind '{kind}' (use {_choices(KINDS)})")
             continue
-        label = KINDS[kind]
         for key in ("state", "normal"):
-            if key not in c:
-                if key == "state":
-                    problems.append(f"{where}: missing 'state'")
-                continue
-            if c[key] not in STATES[label]:
-                problems.append(f"{where}: {key} '{c[key]}' is not valid for a {kind} "
-                                f"(use {_choices(STATES[label])})")
-        if "source" in c and not isinstance(c["source"], bool):
-            problems.append(f"{where}: 'source' must be true or false")
+            if key in c:
+                p = state_problem(kind, c[key], f"{where} {key}")
+                if p:
+                    problems.append(p)
+        if "pressure_source" in c and not isinstance(c["pressure_source"], bool):
+            problems.append(f"{where}: 'pressure_source' must be true or false")
         if "integrity" in c:
-            if label != "Blind":
+            if KINDS[kind] != "Blind":
                 problems.append(f"{where}: 'integrity' applies to blinds only")
             elif c["integrity"] not in INTEGRITY:
                 problems.append(f"{where}: integrity '{c['integrity']}' is not valid (use {_choices(INTEGRITY)})")
         if "name" in c and not isinstance(c["name"], str):
             problems.append(f"{where}: 'name' must be text")
+        if "observed_at" in c and not is_timestamp(c["observed_at"]):
+            problems.append(f"{where}: 'observed_at' must be a timestamp like 2026-11-15T06:00:00Z")
+        if "observed_by" in c and not _text(c["observed_by"]):
+            problems.append(f"{where}: 'observed_by' must be text")
 
     conns = data.get("connections", [])
     if not isinstance(conns, list):
@@ -136,7 +158,7 @@ def permit(data, kinds_by_tag: dict[str, str] | None = None, in_scenario: bool =
     for key in RELATIONS:
         tags = data.get(key, [])
         if not (isinstance(tags, list) and all(_text(t) for t in tags)):
-            problems.append(f"{where}: '{key}' must be a list of tags")
+            problems.append(f"{where}: '{key}' must be a list of tags, like [P-A]")
             continue
         named += [(key, t) for t in tags]
 
@@ -160,7 +182,7 @@ def permit(data, kinds_by_tag: dict[str, str] | None = None, in_scenario: bool =
     if in_scenario:
         if data.get("status", "active") not in {"active", "requested"}:
             problems.append(f"{where}: status '{data['status']}' is not valid here (use active, requested)")
-        if "approved_at" in data and not _timestamp(data["approved_at"]):
+        if "approved_at" in data and not is_timestamp(data["approved_at"]):
             problems.append(f"{where}: 'approved_at' must be a timestamp like 2026-11-15T06:00:00Z")
 
     if kinds_by_tag is not None:
@@ -168,22 +190,69 @@ def permit(data, kinds_by_tag: dict[str, str] | None = None, in_scenario: bool =
         if unknown:
             problems.append(f"{where}: unknown tags: {', '.join(unknown)}")
         for tag, to in targets:
-            kind = kinds_by_tag.get(tag)
-            if kind in KINDS and to not in STATES[KINDS[kind]]:
-                problems.append(f"{where}: cannot operate {tag} to '{to}' "
-                                f"(a {kind} can be {_choices(STATES[KINDS[kind]])})")
+            if tag in kinds_by_tag:
+                p = state_problem(kinds_by_tag[tag], to, f"{where} operates {tag}", allow_unknown=False)
+                if p:
+                    problems.append(p)
     return problems
+
+
+def changes(items, kinds_by_tag: dict[str, str] | None = None, where: str = "change") -> list[str]:
+    """Check a list of state changes [{tag, to}] (a `set` or a what-if)."""
+    if not isinstance(items, list) or not items:
+        return [f"{where}: give at least one change, like RLV-504=closed"]
+    problems = []
+    seen = set()
+    for i, c in enumerate(items, 1):
+        w = f"{where} {i}"
+        if not isinstance(c, dict) or not _text(c.get("tag")) or not _text(c.get("to")):
+            problems.append(f"{w}: needs a tag and a state, like RLV-504=closed")
+            continue
+        if c["tag"] in seen:
+            problems.append(f"{w}: {c['tag']} is changed more than once")
+        seen.add(c["tag"])
+        if kinds_by_tag is not None:
+            if c["tag"] not in kinds_by_tag:
+                problems.append(f"{w}: unknown tag {c['tag']}")
+            else:
+                p = state_problem(kinds_by_tag[c["tag"]], c["to"], f"{w} ({c['tag']})")
+                if p:
+                    problems.append(p)
+    return problems
+
+
+def max_hops(value) -> list[str]:
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_HOPS_LIMIT:
+        return [f"max_hops must be a whole number from 1 to {MAX_HOPS_LIMIT}, got {value!r}"]
+    return []
 
 
 def scenario(data) -> list[str]:
     """Check a scenario's own fields and its permits' shape. Tags are checked once the plant is loaded."""
     if not isinstance(data, dict):
-        return ["the file must be a mapping with 'plant' and 'permits'"]
+        return ["the file must be a mapping with 'plant', 'as_of' and 'permits'"]
     problems = _unknown_keys(data, SCENARIO_KEYS, "scenario")
     if not _text(data.get("plant")):
         problems.append("scenario: missing 'plant' (path to the plant YAML, relative to this file)")
-    if "as_of" in data and not _timestamp(data["as_of"]):
+    if "as_of" not in data:
+        problems.append("scenario: missing 'as_of' (the time of this picture, like 2026-11-15T06:00:00Z)")
+    elif not is_timestamp(data["as_of"]):
         problems.append("scenario: 'as_of' must be a timestamp like 2026-11-15T06:00:00Z")
+    age = data.get("max_observation_age_hours", 12)
+    if isinstance(age, bool) or not isinstance(age, (int, float)) or age <= 0:
+        problems.append("scenario: 'max_observation_age_hours' must be a positive number")
+    obs = data.get("observations", [])
+    if not isinstance(obs, list):
+        problems.append("scenario: 'observations' must be a list")
+        obs = []
+    for i, o in enumerate(obs, 1):
+        w = f"observation {i}"
+        if not isinstance(o, dict) or not _text(o.get("tag")) or "state" not in o:
+            problems.append(f"{w}: needs 'tag' and 'state'")
+            continue
+        problems += _unknown_keys(o, OBSERVATION_KEYS, w)
+        if "observed_at" in o and not is_timestamp(o["observed_at"]):
+            problems.append(f"{w}: 'observed_at' must be a timestamp")
     permits = data.get("permits", [])
     if not isinstance(permits, list):
         return problems + ["scenario: 'permits' must be a list"]

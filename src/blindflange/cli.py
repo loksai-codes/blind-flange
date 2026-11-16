@@ -1,4 +1,4 @@
-"""Command line: build a store, check and approve permits, change states, hand over."""
+"""Command line: build a store, assess permits and state changes, what-if, hand over, replay."""
 from __future__ import annotations
 
 import argparse
@@ -7,85 +7,109 @@ import os
 import re
 import sys
 
-from . import checks, store, validate
+from . import checks, render, store, validate
 
 ARROW = " -> "
+EXIT = {checks.CLEAR: 0, checks.HOLD: 0, checks.BLOCK: 2}
 
 
-def _print_result(r: checks.Result, as_json: bool) -> None:
-    if as_json:
-        print(json.dumps(r.to_dict(), indent=2))
-        return
-    label = r.title if r.permit.startswith("__") else f"{r.permit}  {r.title}"
-    print(f"{r.verdict}  {label}")
-    for i, f in enumerate(r.findings, 1):
-        print(f"\n  {i}. [{f.severity}] {f.code}")
-        print(f"     {f.message}")
-        if f.permit:
-            print(f"     Other permit: {f.permit}  {f.permit_title}")
-        if f.path:
-            n = len(f.path) - 1
-            print(f"     Path ({n} hop{'s' if n != 1 else ''}): {ARROW.join(f.path)}")
-    if not r.findings:
-        print("\n  No conflicts found with active permits or current plant state.")
-    if r.baseline_shared_tags:
-        pairs = "; ".join(f"{p}: {', '.join(t)}" for p, t in r.baseline_shared_tags.items())
-        print(f"\n  Tag matching alone: shared tags with {pairs}.")
-    else:
-        print("\n  Tag matching alone: no shared tags with any active permit, so it would pass.")
+def _exit_code(r: checks.Result) -> int:
+    if r.assessment_status == checks.ERROR:
+        return 1
+    if r.conflict_verdict is None:
+        return 3
+    return EXIT[r.conflict_verdict]
+
+
+def _emit(r: checks.Result, as_json: bool) -> None:
+    print(json.dumps(r.to_dict(), indent=2) if as_json else render.result_text(r))
+
+
+def _changes(items: list[str]) -> list[dict]:
+    """Accept TAG=STATE pairs, or the older form TAG STATE."""
+    if len(items) == 2 and not any("=" in s for s in items):
+        return [{"tag": items[0], "to": items[1]}]
+    return checks.parse_changes(items)
 
 
 def cmd_build(a) -> int:
     conn = store.build(a.scenario, a.out)
-    n = store.rows(conn, "MATCH (c:Component) RETURN count(c) AS n")[0]["n"]
-    e = store.rows(conn, "MATCH ()-[r:CONNECTED_TO]->() RETURN count(r) AS n")[0]["n"]
-    p = store.rows(conn, "MATCH (p:Permit) RETURN count(p) AS n")[0]["n"]
+    s = store.run(conn, "stats")[0]
     conn.close()
-    print(f"Built {a.out}: {n} components, {e} connections, {p} permits.")
+    print(f"Built {a.out}: {s['components']} components, {s['connections']} connections, "
+          f"{s['active_permits']} active permits.")
     return 0
 
 
-def cmd_check(a, approve: bool = False) -> int:
+def cmd_check(a) -> int:
     permit = store.load_permit(a.permit)
-    if approve:
-        conn = store.connect(a.store)
-        try:
-            r = checks.check(conn, permit, approve=True)
-        finally:
-            conn.close()
-    else:
-        with store.dry_run(a.store) as conn:
-            r = checks.check(conn, permit)
-    _print_result(r, a.json)
-    if approve and not a.json:
-        print("\n  Not approved. Nothing was written." if r.verdict == checks.BLOCK
-              else f"\n  Approved and written to {a.store}.")
-    return {checks.CLEAR: 0, checks.HOLD: 0, checks.BLOCK: 2}[r.verdict]
+    conn = store.connect(a.store)
+    try:
+        r = checks.evaluate(conn, checks.permit_request(permit), max_hops=a.max_hops, at=a.at)
+    finally:
+        conn.close()
+    _emit(r, a.json)
+    return _exit_code(r)
+
+
+def cmd_approve(a) -> int:
+    permit = store.load_permit(a.permit)
+    conn = store.connect(a.store)
+    try:
+        r, written = checks.approve(conn, permit, a.revision, a.max_hops, a.at)
+    finally:
+        conn.close()
+    _emit(r, a.json)
+    if not a.json:
+        print(f"\n  Approved and written to {a.store}." if written
+              else "\n  Not approved. Nothing was written.")
+    return _exit_code(r) if written or r.assessment_status == checks.ERROR else max(_exit_code(r), 2)
 
 
 def cmd_set(a) -> int:
+    changes = _changes(a.changes)
     conn = store.connect(a.store)
     try:
-        r = checks.check_state_change(conn, a.tag, a.state)
-        if r.verdict == checks.BLOCK and not a.force:
-            _print_result(r, a.json)
-            if not a.json:
-                print("\n  State not changed. Use --force to override.")
-            return 2
-        before = store.component(conn, a.tag)["state"]
-        with store.transaction(conn, commit=True):
-            store.set_state(conn, a.tag, a.state)
+        before = {c["tag"]: store.component(conn, c["tag"])["state"] for c in changes
+                  if store.run(conn, "component", tag=c["tag"])}
+        r, written = checks.set_states(conn, changes, a.revision, a.max_hops, a.at,
+                                       by=a.by, force=a.force, observed_at=a.observed_at)
     finally:
         conn.close()
-    print(f"{a.tag}: {before} -> {a.state}")
+    if not written:
+        _emit(r, a.json)
+        if not a.json and r.assessment_status != checks.ERROR:
+            print("\n  State not changed. Resolve the findings, or use --force to override.")
+        return 1 if r.assessment_status == checks.ERROR else 2
+    if a.json:
+        print(json.dumps(dict(r.to_dict(), written=True), indent=2))
+    else:
+        if r.findings:
+            print(render.result_text(r) + "\n")
+        for c in changes:
+            print(f"{c['tag']}: {before.get(c['tag'], '?')} -> {c['to']}")
     return 0
+
+
+def cmd_whatif(a) -> int:
+    hypothetical = checks.parse_changes(a.set)
+    conn = store.connect(a.store)
+    try:
+        if a.permit:
+            req = checks.permit_request(store.load_permit(a.permit))
+            r = checks.evaluate(conn, req, hypothetical, a.max_hops, a.at, kind="what-if")
+        else:
+            r = checks.evaluate(conn, checks.change_request(hypothetical), (), a.max_hops, a.at, kind="what-if")
+    finally:
+        conn.close()
+    _emit(r, a.json)
+    return _exit_code(r)
 
 
 def cmd_close(a) -> int:
     conn = store.connect(a.store)
     try:
-        with store.transaction(conn, commit=True):
-            still = store.close_permit(conn, a.permit_id)
+        still = checks.close(conn, a.permit_id, a.revision)
     finally:
         conn.close()
     print(f"Closed {a.permit_id}.")
@@ -95,45 +119,75 @@ def cmd_close(a) -> int:
 
 
 def cmd_reach(a) -> int:
-    conn = store.connect(a.store, read_only=True)
+    hypothetical = checks.parse_changes(a.set or [])
+    conn = store.connect(a.store, read_only=not hypothetical)
     try:
         store.component(conn, a.tag)
-        got = store.rows(conn, store.query("reach"), tag=a.tag)
+        info = store.info(conn)
+        at = store.timestamp(a.at) if a.at else info["as_of"]
+        stale_before = store.hours_before(at, info["max_age_hours"])
+        problems = validate.changes(hypothetical, store.kinds_for(conn, [h["tag"] for h in hypothetical])) \
+            if hypothetical else []
+        if problems:
+            raise store.ValidationError("what-if", problems)
+        with store.transaction(conn, commit=False):
+            for h in hypothetical:
+                store.set_state(conn, h["tag"], h["to"], at, "what-if")
+            got = store.rows(conn, store.query("reach", a.max_hops), tag=a.tag, stale_before=stale_before)
     finally:
         conn.close()
     if a.json:
         print(json.dumps(got, indent=2))
         return 0
-    print(f"If {a.tag} is live, pressure reaches {len(got)} items:")
+    head = f"If {a.tag} is live, pressure could reach {len(got)} items"
+    print(head + (" (what-if: " + ", ".join(f"{h['tag']}={h['to']}" for h in hypothetical) + ")" if hypothetical else "") + ":")
     for r in got:
-        stop = "  <- stops here" if r["state"] in ("closed", "installed", "removed") else ""
-        print(f"  {r['hops']:>2} hop{'s' if r['hops'] != 1 else ' '}  {r['tag']:<10} {r['kind']:<12} {r['state']}{stop}")
+        stop = "  <- stops here" if r["state"] in ("closed", "installed") else (
+            "  <- open end" if r["state"] == "removed" else "")
+        unc = f"  (via unconfirmed {', '.join(r['uncertain'])})" if r["uncertain"] else ""
+        print(f"  {r['hops']:>2} hop{'s' if r['hops'] != 1 else ' '}  {r['tag']:<10} {r['kind']:<13} {r['state']}{stop}{unc}")
     return 0
 
 
 def cmd_handover(a) -> int:
     conn = store.connect(a.store, read_only=True)
     try:
+        info = store.info(conn)
         permits = store.rows(conn, store.query("handover"))
-        off = store.rows(conn, "MATCH (c:Component) WHERE c.state <> c.normal "
-                               "RETURN c.tag AS tag, c.name AS name, c.state AS state, c.normal AS normal ORDER BY tag")
-        hazards = [f.to_dict() for f in checks.standing_hazards(conn)]
+        off = store.run(conn, "not_normal")
+        stale_before = store.hours_before(info["as_of"], info["max_age_hours"])
+        unconfirmed = store.run(conn, "uncertain", stale_before=stale_before)
+    finally:
+        conn.close()
+    conn = store.connect(a.store)             # the survey writes inside a rolled-back transaction
+    try:
+        survey = checks.survey(conn, a.max_hops)
     finally:
         conn.close()
     if a.json:
-        print(json.dumps({"permits": permits, "not_normal": off, "hazards": hazards}, indent=2))
+        print(json.dumps({"store": info, "permits": permits, "not_normal": off, "unconfirmed": unconfirmed,
+                          "survey": survey.to_dict()}, indent=2))
         return 0
-    print(f"SHIFT HANDOVER  {a.store}\n\nActive permits ({len(permits)})")
+    print(f"SHIFT HANDOVER  {a.store}  (picture as of {info['as_of']}, revision {info['revision']})")
+    print(f"\nActive permits ({len(permits)})")
     for p in permits:
         print(f"  {p['permit']}  {p['title']}")
         print(f"     works on:  {', '.join(p['works_on']) or '-'}")
         print(f"     relies on: {', '.join(p['relies_on']) or '-'}")
     print(f"\nNot in normal state ({len(off)})")
     for c in off:
-        print(f"  {c['tag']:<10} {c['state']:<10} (normally {c['normal']})  {c['name']}")
-    print(f"\nStanding hazards ({len(hazards)})")
-    for h in hazards:
-        print(f"  {h['code']}: {h['message']}\n     {ARROW.join(h['path'])}")
+        print(f"  {c['tag']:<10} {c['state']:<13} (normally {c['normal']})  {c['name']}")
+    print(f"\nUnconfirmed states ({len(unconfirmed)})")
+    for u in unconfirmed:
+        print(f"  {u['tag']:<10} {u['state']:<13} {u['reason']}, observed {u['observed_at'] or 'never'}")
+    print(f"\nStanding hazards ({len(survey.findings)})  assessment {survey.assessment_status}")
+    for f in survey.findings:
+        print(f"  [{f.severity}] {f.code}: {f.message}")
+        if len(f.path) > 1:
+            print(f"     {ARROW.join(f.path)}")
+    for reason in survey.incomplete_reasons:
+        if "search stopped" in reason:
+            print(f"  Incomplete: {reason}.")
     return 0
 
 
@@ -143,10 +197,7 @@ def cmd_find(a) -> int:
         raise store.StoreError("nothing to search for")
     conn = store.connect(a.store, read_only=True)
     try:
-        got = store.rows(conn,
-                         "CALL db.index.fulltext.queryNodes('component_text', $q) YIELD node, score "
-                         "RETURN node.tag AS tag, node.name AS name, score ORDER BY score DESC LIMIT 5",
-                         q=" OR ".join(words))
+        got = store.run(conn, "find", q=" OR ".join(words))
     finally:
         conn.close()
     for r in got:
@@ -154,6 +205,75 @@ def cmd_find(a) -> int:
     if not got:
         print("  No matching components.")
     return 0
+
+
+def cmd_evaluations(a) -> int:
+    conn = store.connect(a.store, read_only=True)
+    try:
+        got = store.list_evaluations(conn)
+    finally:
+        conn.close()
+    if a.json:
+        print(json.dumps(got, indent=2))
+        return 0
+    if not got:
+        print("  No evaluations recorded.")
+    for e in got:
+        print(f"  {e['id']:<9} {e['at']}  rev {e['revision']:<3} {e['kind']:<8} {e['request_id'] or '-':<12} "
+              f"{e['assessment_status']:<10} {e['conflict_verdict'] or '-'}")
+    return 0
+
+
+def cmd_show(a) -> int:
+    conn = store.connect(a.store, read_only=True)
+    try:
+        e = store.get_evaluation(conn, a.evaluation_id)
+    finally:
+        conn.close()
+    if a.json:
+        print(json.dumps(e, indent=2))
+        return 0
+    r = _result_from_dict(e["result"])
+    r.evaluation_id = e["id"]
+    print(f"{e['id']}  recorded {e['at']}  kind {e['kind']}  revision {e['revision']}\n")
+    print(render.result_text(r))
+    return 0
+
+
+def cmd_replay(a) -> int:
+    conn = store.connect(a.store, read_only=True)
+    try:
+        recorded, replayed, same = checks.replay(conn, a.evaluation_id)
+    finally:
+        conn.close()
+    print(f"{a.evaluation_id}: recorded {recorded['conflict_verdict'] or recorded['assessment_status']}, "
+          f"replayed {replayed['conflict_verdict'] or replayed['assessment_status']}.")
+    if same:
+        print("  Reproduced exactly from the recorded snapshot.")
+        return 0
+    diff = sorted(k for k in recorded if recorded.get(k) != replayed.get(k))
+    print(f"  Differs in: {', '.join(diff)}")
+    return 1
+
+
+def cmd_report(a) -> int:
+    from . import report
+    conn = store.connect(a.store, read_only=True)
+    try:
+        e = store.get_evaluation(conn, a.evaluation_id)
+    finally:
+        conn.close()
+    html = report.evaluation_html(e)
+    out = a.out or f"{a.evaluation_id}.html"
+    with open(out, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(html)
+    print(f"Wrote {out}")
+    return 0
+
+
+def cmd_mcp(a) -> int:
+    from . import agent
+    return agent.serve(a.store)
 
 
 def cmd_validate(a) -> int:
@@ -164,19 +284,19 @@ def cmd_validate(a) -> int:
     elif isinstance(data, dict) and "plant" in data:
         what, problems = "scenario", []
         try:
-            store.load_scenario(a.file)                     # the scenario, its plant, and permit tags
+            store.load_scenario(a.file)
         except store.ValidationError as e:
             problems = [p if e.source == str(a.file) else f"{e.source}: {p}" for p in e.problems]
     elif isinstance(data, dict) and "id" in data:
         what, problems = "permit", validate.permit(data)
         if not problems and a.store:
-            with store.dry_run(a.store) as conn:
-                tags = sorted({t for k in ("works_on", "relies_on", "energises") for t in data.get(k, [])}
-                              | {o["tag"] for o in data.get("operates", [])})
-                kinds = {r["tag"]: r["kind"] for r in store.rows(
-                    conn, "MATCH (c:Component) WHERE c.tag IN $tags RETURN c.tag AS tag, c.kind AS kind",
-                    tags=tags)}
-            problems = validate.permit(data, kinds)
+            conn = store.connect(a.store, read_only=True)
+            try:
+                tags = {t for k in ("works_on", "relies_on", "energises") for t in data.get(k, [])}
+                tags |= {o["tag"] for o in data.get("operates", [])}
+                problems = validate.permit(data, store.kinds_for(conn, tags))
+            finally:
+                conn.close()
     else:
         raise store.StoreError(f"{a.file}: not a plant (components), scenario (plant) or permit (id) file")
     for p in problems:
@@ -189,8 +309,15 @@ def cmd_validate(a) -> int:
     return 0
 
 
+def _result_from_dict(d: dict) -> checks.Result:
+    d = dict(d)
+    d.pop("baseline_verdict", None)
+    d["findings"] = [checks.Finding(**f) for f in d["findings"]]
+    return checks.Result(**d)
+
+
 class _Parser(argparse.ArgumentParser):
-    """Usage errors are one line and exit 1, so exit 2 always means BLOCK."""
+    """Usage errors are one line and exit 1, so exit 2 always means BLOCK or refused."""
 
     def error(self, message):
         self.exit(1, f"error: {message} (see '{self.prog} -h')\n")
@@ -215,6 +342,17 @@ def _run(a) -> int:
     return 1
 
 
+def _hops(value: str) -> int:
+    try:
+        n = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a whole number: {value!r}") from None
+    problems = validate.max_hops(n)
+    if problems:
+        raise argparse.ArgumentTypeError(problems[0])
+    return n
+
+
 def main(argv=None) -> int:
     for stream in (sys.stdout, sys.stderr):
         try:
@@ -222,42 +360,90 @@ def main(argv=None) -> int:
         except (AttributeError, ValueError):
             pass
     ap = _Parser(prog="blindflange", description=__doc__,
-                 epilog="Exit codes: 0 done (CLEAR or HOLD), 1 error, 2 BLOCK or refused.")
-    sub = ap.add_subparsers(dest="cmd", required=True)
+                 epilog="Exit codes: 0 CLEAR or HOLD (or done), 1 error, 2 BLOCK or refused, "
+                        "3 INCOMPLETE with no verdict.")
+    sub = ap.add_subparsers(dest="cmd", required=True, parser_class=_Parser)
 
     def add(name, fn, help_):
         p = sub.add_parser(name, help=help_, description=help_)
         p.set_defaults(fn=fn)
         return p
 
+    def assessment_options(p, revision=False):
+        p.add_argument("--store", required=True, help="the .rl store")
+        p.add_argument("--json", action="store_true", help="machine-readable output")
+        p.add_argument("--max-hops", type=_hops, default=None, help="search bound (default 100)")
+        p.add_argument("--at", help="assess as of this time (default: the store's as_of)")
+        if revision:
+            p.add_argument("--revision", type=int, help="refuse if the store is no longer at this revision")
+
     p = add("build", cmd_build, "create a store from a scenario file")
     p.add_argument("scenario")
     p.add_argument("-o", "--out", required=True)
-    for name, fn, h in (("check", cmd_check, "check a permit without changing the store"),
-                        ("approve", lambda a: cmd_check(a, approve=True), "check a permit and store it if not blocked")):
-        p = add(name, fn, h)
-        p.add_argument("permit", help="permit YAML file")
-        p.add_argument("--store", required=True)
-        p.add_argument("--json", action="store_true")
-    p = add("set", cmd_set, "change a valve, blind or equipment state")
-    p.add_argument("tag")
-    p.add_argument("state")
-    p.add_argument("--store", required=True)
-    p.add_argument("--force", action="store_true")
-    p.add_argument("--json", action="store_true")
+
+    p = add("check", cmd_check, "assess a permit; records an Evaluation, changes nothing else")
+    p.add_argument("permit", help="permit YAML file")
+    assessment_options(p)
+
+    p = add("approve", cmd_approve, "assess a permit and store it as active if CLEAR or HOLD")
+    p.add_argument("permit", help="permit YAML file")
+    assessment_options(p, revision=True)
+
+    p = add("set", cmd_set, "record a state change, refused if it is not CLEAR or HOLD")
+    p.add_argument("changes", nargs="+", help="TAG=STATE pairs, e.g. RLV-504=closed")
+    assessment_options(p, revision=True)
+    p.add_argument("--force", action="store_true", help="write even if blocked")
+    p.add_argument("--by", default="blindflange set", help="who observed or made the change")
+    p.add_argument("--observed-at", help="when the state was observed (default: now)")
+
+    p = add("whatif", cmd_whatif, "assess hypothetical state changes, with or without a permit; changes nothing")
+    p.add_argument("--set", action="append", required=True, metavar="TAG=STATE", help="hypothetical change (repeat)")
+    p.add_argument("--permit", help="also assess this permit on top of the changes")
+    assessment_options(p)
+
     p = add("close", cmd_close, "close an active permit")
     p.add_argument("permit_id")
     p.add_argument("--store", required=True)
-    p = add("reach", cmd_reach, "show what a component would pressurise")
+    p.add_argument("--revision", type=int)
+
+    p = add("reach", cmd_reach, "show what a component could pressurise")
     p.add_argument("tag")
     p.add_argument("--store", required=True)
+    p.add_argument("--set", action="append", metavar="TAG=STATE", help="hypothetical change (repeat)")
+    p.add_argument("--max-hops", type=_hops, default=None)
+    p.add_argument("--at")
     p.add_argument("--json", action="store_true")
+
     p = add("handover", cmd_handover, "print the shift handover summary")
     p.add_argument("--store", required=True)
+    p.add_argument("--max-hops", type=_hops, default=None)
     p.add_argument("--json", action="store_true")
+
     p = add("find", cmd_find, "find equipment tags from free text")
     p.add_argument("text")
     p.add_argument("--store", required=True)
+
+    p = add("evaluations", cmd_evaluations, "list recorded evaluations")
+    p.add_argument("--store", required=True)
+    p.add_argument("--json", action="store_true")
+
+    p = add("show", cmd_show, "show a recorded evaluation")
+    p.add_argument("evaluation_id")
+    p.add_argument("--store", required=True)
+    p.add_argument("--json", action="store_true")
+
+    p = add("replay", cmd_replay, "re-run a recorded evaluation on its snapshot and compare")
+    p.add_argument("evaluation_id")
+    p.add_argument("--store", required=True)
+
+    p = add("report", cmd_report, "write an HTML evidence report for a recorded evaluation")
+    p.add_argument("evaluation_id")
+    p.add_argument("--store", required=True)
+    p.add_argument("-o", "--out", help="output .html file (default EVAL-n.html)")
+
+    p = add("mcp", cmd_mcp, "serve the agent tools (assess_change, what_if, ...) over MCP stdio")
+    p.add_argument("--store", required=True)
+
     p = add("validate", cmd_validate, "list every problem in a plant, scenario or permit file")
     p.add_argument("file")
     p.add_argument("--store", help="also check a permit's tags against this store")

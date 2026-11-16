@@ -2,20 +2,34 @@
 
 # component kind -> node label
 KINDS = {
-    "pump": "Equipment", "vessel": "Equipment", "header": "Equipment",
-    "exchanger": "Equipment", "strainer": "Equipment",
+    "pump": "Equipment", "compressor": "Equipment", "vessel": "Equipment", "header": "Equipment",
+    "exchanger": "Equipment", "strainer": "Equipment", "filter": "Equipment",
     "line": "Line",
-    "valve": "Valve", "check_valve": "Valve", "psv": "Valve",
+    "valve": "Valve", "check_valve": "Valve", "control_valve": "Valve", "psv": "Valve",
     "blind": "Blind",
 }
 
-# valid states per label
+LABELS = ("Equipment", "Line", "Valve", "Blind")
+
+UNKNOWN = "unknown"
+
+# Valid states per label. A blind is never "removed": that word is ambiguous for a
+# blind (blind taken out, or spool taken out?), so blinds are installed or not_installed.
 STATES = {
-    "Valve": {"open", "closed", "removed"},
-    "Blind": {"installed", "removed"},
-    "Line": {"in_service", "removed"},
-    "Equipment": {"in_service", "shutdown", "removed"},
+    "Valve": {"open", "closed", "removed", UNKNOWN},
+    "Blind": {"installed", "not_installed", UNKNOWN},
+    "Line": {"in_service", "removed", UNKNOWN},
+    "Equipment": {"in_service", "shutdown", "removed", UNKNOWN},
 }
+
+# Passability, the one rule (also in queries/exposures.cypher, queries/reach.cypher,
+# queries/bound.cypher and docs/SPEC.md):
+#   closed, installed  barrier: pressure reaches it and stops
+#   removed            open end: pressure reaches it, escapes, and does not continue
+#   unknown            not known: never a barrier; the walk may pass it, but only as POSSIBLE
+#   anything else      passes
+BARRIER = ("closed", "installed")
+OPEN_END = "removed"
 
 INTEGRITY = {"rated", "temporary"}
 
@@ -24,6 +38,15 @@ RELATIONS = {"works_on": "WORKS_ON", "relies_on": "RELIES_ON", "energises": "ENE
 
 PERMIT_STATUS = {"requested", "active", "closed"}
 
+# Defaults for an assessment.
+DEFAULT_MAX_HOPS = 100          # Relate refuses explicit path bounds above 500
+MAX_HOPS_LIMIT = 499            # the bound probe uses max_hops + 1
+DEFAULT_MAX_AGE_HOURS = 12      # one shift
+
 
 def label_for(kind: str) -> str:
     return KINDS[kind]
+
+
+def valid_states(kind: str) -> set[str]:
+    return STATES[KINDS[kind]]

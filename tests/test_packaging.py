@@ -9,7 +9,7 @@ def test_every_query_file_is_served_from_the_package():
     files = sorted((ROOT / "queries").glob("*.cypher"))
     assert files
     for f in files:
-        assert store.query(f.stem) == f.read_text(encoding="utf-8")
+        assert store._read("blindflange.queries", f.name) == f.read_text(encoding="utf-8")
 
 
 def test_schema_is_served_from_the_package():

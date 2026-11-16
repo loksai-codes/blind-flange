@@ -5,24 +5,24 @@
 unit: Condensate injection (illustrative)
 components:
   # suction
-  - {tag: JT-DRUM,  kind: vessel,      name: JT flash drum (condensate),            state: in_service, source: true}
+  - {tag: JT-DRUM,  kind: vessel,      name: JT flash drum (condensate),            state: in_service, pressure_source: true}
   - {tag: L-SH,     kind: line,        name: Condensate suction header,             state: in_service}
   # pump A train (shut down for maintenance)
   - {tag: SV-A,     kind: valve,       name: Pump A suction isolation valve,        state: closed,     normal: open}
   - {tag: STR-A,    kind: strainer,    name: Pump A suction strainer,               state: shutdown,   normal: in_service}
   - {tag: DR-A,     kind: valve,       name: Strainer A drain valve,                state: closed}
-  - {tag: P-A,      kind: pump,        name: Condensate injection pump A,           state: shutdown,   normal: in_service, source: true}
+  - {tag: P-A,      kind: pump,        name: Condensate injection pump A,           state: shutdown,   normal: in_service, pressure_source: true}
   - {tag: L-PD-A,   kind: line,        name: Pump A discharge line,                 state: in_service}
   - {tag: RLV-504,  kind: valve,       name: PSV-504 inlet block valve,             state: open}
   - {tag: L-RL-504, kind: line,        name: Pump A relief line,                    state: in_service}
-  - {tag: BF-504,   kind: blind,       name: Blind flange fitted in place of PSV-504, state: installed, normal: removed, integrity: temporary}
+  - {tag: BF-504,   kind: blind,       name: Blind flange fitted in place of PSV-504, state: installed, normal: not_installed, integrity: temporary}
   - {tag: PSV-504,  kind: psv,         name: Pump A discharge relief valve,         state: removed,    normal: closed}
   - {tag: NRV-A,    kind: check_valve, name: Pump A discharge non-return valve,     state: open}
   - {tag: DV-A,     kind: valve,       name: Pump A discharge isolation valve,      state: closed,     normal: open}
   # pump B train (running)
   - {tag: SV-B,     kind: valve,       name: Pump B suction isolation valve,        state: open}
   - {tag: STR-B,    kind: strainer,    name: Pump B suction strainer,               state: in_service}
-  - {tag: P-B,      kind: pump,        name: Condensate injection pump B,           state: in_service, source: true}
+  - {tag: P-B,      kind: pump,        name: Condensate injection pump B,           state: in_service, pressure_source: true}
   - {tag: L-PD-B,   kind: line,        name: Pump B discharge line,                 state: in_service}
   - {tag: RLV-505,  kind: valve,       name: PSV-505 inlet block valve,             state: open}
   - {tag: L-RL-505, kind: line,        name: Pump B relief line,                    state: in_service}
@@ -41,9 +41,9 @@ components:
   - {tag: BV-1,     kind: valve,       name: Cooler E-1 bypass valve,               state: open,       normal: closed}
   - {tag: L-EX,     kind: line,        name: Export line,                           state: in_service}
   - {tag: MOL-XV,   kind: valve,       name: Main oil line tie-in valve,            state: open}
-  - {tag: MOL,      kind: header,      name: Main oil line,                         state: in_service, source: true}
+  - {tag: MOL,      kind: header,      name: Main oil line,                         state: in_service, pressure_source: true}
   # utilities
-  - {tag: FW-HDR,   kind: header,      name: Flush water header,                    state: in_service, source: true}
+  - {tag: FW-HDR,   kind: header,      name: Flush water header,                    state: in_service, pressure_source: true}
   - {tag: XV-9,     kind: valve,       name: Cooler E-1 flush water inlet valve,    state: closed}
 connections:
   - [JT-DRUM, L-SH]

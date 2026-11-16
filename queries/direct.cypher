@@ -1,16 +1,30 @@
-// One-hop conflicts between the candidate permit and active permits.
+// One-hop conflicts between the request $id and the permits already active.
+// The request's state changes have been written (inside a rolled-back transaction).
+// Each row carries the graph edges that prove it, as text.
 MATCH (p:Permit {id: $id})-[o:OPERATES]->(v:Component)<-[:RELIES_ON]-(q:Permit {status: 'active'})
-WHERE q.id <> p.id AND o.to IN ['open', 'removed']
-RETURN 'ISOLATION_REMOVED' AS code, q.id AS permit, q.title AS title, v.tag AS target
+WHERE q.id <> p.id AND NOT o.to IN ['closed', 'installed', 'unknown']
+RETURN 'ISOLATION_REMOVED' AS code, q.id AS permit, q.title AS title, v.tag AS target, false AS uncertain,
+       [p.id + ' OPERATES ' + v.tag + ' to ' + o.to, q.id + ' RELIES_ON ' + v.tag] AS evidence
 UNION
 MATCH (p:Permit {id: $id})-[:ENERGISES]->(v:Component)<-[:WORKS_ON]-(q:Permit {status: 'active'})
 WHERE q.id <> p.id
-RETURN 'ENERGISES_WORKSITE' AS code, q.id AS permit, q.title AS title, v.tag AS target
+RETURN 'ENERGISES_WORKSITE' AS code, q.id AS permit, q.title AS title, v.tag AS target, false AS uncertain,
+       [p.id + ' ENERGISES ' + v.tag, q.id + ' WORKS_ON ' + v.tag] AS evidence
+UNION
+MATCH (p:Permit {id: $id})-[o:OPERATES {to: 'in_service'}]->(v:Component)<-[:WORKS_ON]-(q:Permit {status: 'active'})
+WHERE q.id <> p.id
+RETURN 'ENERGISES_WORKSITE' AS code, q.id AS permit, q.title AS title, v.tag AS target, false AS uncertain,
+       [p.id + ' OPERATES ' + v.tag + ' to in_service', q.id + ' WORKS_ON ' + v.tag] AS evidence
 UNION
 MATCH (p:Permit {id: $id})-[:RELIES_ON]->(v:Component)<-[:RELIES_ON]-(q:Permit {status: 'active'})
 WHERE q.id <> p.id
-RETURN 'SHARED_ISOLATION' AS code, q.id AS permit, q.title AS title, v.tag AS target
+RETURN 'SHARED_ISOLATION' AS code, q.id AS permit, q.title AS title, v.tag AS target, false AS uncertain,
+       [p.id + ' RELIES_ON ' + v.tag, q.id + ' RELIES_ON ' + v.tag] AS evidence
 UNION
 MATCH (p:Permit {id: $id})-[:RELIES_ON]->(v:Component)
-WHERE NOT v.state IN ['closed', 'installed'] AND NOT v.tag IN $assume_closed
-RETURN 'ISOLATION_NOT_IN_PLACE' AS code, p.id AS permit, p.title AS title, v.tag AS target
+WHERE NOT coalesce(v.state, 'unknown') IN ['closed', 'installed']
+   OR coalesce(v.observed_at, '') < $stale_before
+RETURN 'ISOLATION_NOT_IN_PLACE' AS code, '' AS permit, null AS title, v.tag AS target,
+       (coalesce(v.state, 'unknown') = 'unknown' OR coalesce(v.observed_at, '') < $stale_before) AS uncertain,
+       [p.id + ' RELIES_ON ' + v.tag,
+        v.tag + ' is ' + coalesce(v.state, 'unknown') + ', observed ' + coalesce(v.observed_at, 'never')] AS evidence

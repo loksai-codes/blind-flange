@@ -1,45 +1,145 @@
-# Test cases. Expected verdicts were fixed before the checks were first run.
-# Each case requests one permit
-# against the start-of-shift scenario, optionally after some setup.
-#   expect: the verdict a competent permit coordinator should reach
-#   shared_tag: whether the request shares an equipment tag with an active permit
-scenario: ../data/scenarios/condensate_unit.yaml
+# Eval cases. Each expected result was written before the check it exercises
+# was built or changed, and is not edited to match the tool afterwards.
+#
+# Each case builds a scenario in memory, runs the setup steps, then assesses one
+# request. A request is a permit file (`request: PTW-0511`) or a state change
+# (`request: {set: [P-A, in_service]}`).
+#
+# Setup steps:
+#   {set: [TAG, STATE]}                 change a state (observed at the scenario as_of)
+#   {observe: [TAG, STATE, TIMESTAMP]}  record an observation with its own time
+#   {approve: PTW-xxxx}                 check and store a permit (must not be blocked)
+#
+#   expect:  BLOCK | HOLD | CLEAR | none   the conflict_verdict a competent coordinator
+#                                          should reach; none means "cannot say"
+#   status:  COMPLETE | INCOMPLETE | ERROR (default COMPLETE)
+#   codes:   finding codes that must be present (optional)
+scenarios:
+  condensate: ../data/scenarios/condensate_unit.yaml
+  gas_plant: ../data/scenarios/gas_plant.yaml
 cases:
+  # ---------------------------------------------------------- condensate unit
   - name: Start pump A while its relief valve is out
+    scenario: condensate
     request: PTW-0511
     expect: BLOCK
-    note: The Piper Alpha pattern. Two permits, no shared tag, one path.
+    codes: [PRESSURE_REACHES_TEMPORARY_BARRIER]
+    note: Two permits, no shared tag, one path through the piping.
   - name: Start pump A after the relief line is blocked in
+    scenario: condensate
     setup: [{set: [RLV-504, closed]}]
     request: PTW-0511
     expect: CLEAR
-    note: Same permit, one valve closed. The path no longer exists.
+    note: Same permit, one valve closed. Pressure reaches RLV-504 and stops there.
   - name: Stroke-test a valve another job relies on
+    scenario: condensate
     request: PTW-0845
     expect: BLOCK
+    codes: [ISOLATION_REMOVED]
   - name: Open flush water into an opened cooler
+    scenario: condensate
     request: PTW-0846
     expect: BLOCK
+    codes: [PRESSURE_REACHES_OPEN_WORK]
     note: XV-9 is not on the cooler permit's isolation list.
   - name: Second job behind an isolation already in use
+    scenario: condensate
     request: PTW-0847
     expect: HOLD
+    codes: [SHARED_ISOLATION]
   - name: Strainer change on the isolated pump train
+    scenario: condensate
     request: PTW-0848
     expect: CLEAR
-    note: Next to the PSV job but not connected to live pressure.
+    note: Pressure from the suction header is held at SV-A.
   - name: Line break with the isolation valve still open
+    scenario: condensate
     request: PTW-0849
     expect: BLOCK
+    codes: [ISOLATION_NOT_IN_PLACE, WORKSITE_NOT_ISOLATED]
     note: A single-permit error. No other permit is involved.
   - name: External painting
+    scenario: condensate
     request: PTW-0850
     expect: CLEAR
   - name: Pump overhaul on the isolated train
+    scenario: condensate
     request: PTW-0851
     expect: CLEAR
   - name: Start pump A while it is being overhauled
+    scenario: condensate
     setup: [{approve: PTW-0851}, {set: [RLV-504, closed]}]
     request: PTW-0511
     expect: BLOCK
+    codes: [ENERGISES_WORKSITE, ISOLATION_REMOVED]
     note: The obvious clash. Tag matching catches this one too.
+  - name: Start pump A by changing its state, with no permit
+    scenario: condensate
+    request: {set: [P-A, in_service]}
+    expect: BLOCK
+    codes: [PRESSURE_REACHES_TEMPORARY_BARRIER]
+    note: The same hazard as the first case, reached through a state change.
+  - name: Unrelated permit while a worksite is already exposed
+    scenario: condensate
+    setup: [{set: [EV-1, open]}]
+    request: PTW-0850
+    expect: HOLD
+    codes: [PRESSURE_REACHES_OPEN_WORK]
+    note: Not caused by this request, but the hazard is there. Never CLEAR.
+  - name: Close the valve that exposes the worksite
+    scenario: condensate
+    setup: [{set: [EV-1, open]}]
+    request: {set: [EV-1, closed]}
+    expect: CLEAR
+    note: The request removes the existing hazard.
+  - name: Second source into a worksite that is already exposed
+    scenario: condensate
+    setup: [{set: [EV-1, open]}]
+    request: PTW-0846
+    expect: BLOCK
+    codes: [PRESSURE_REACHES_OPEN_WORK]
+    note: Flush water is a new source of pressure on the same worksite.
+  - name: Remove a valve from a live line
+    scenario: condensate
+    request: {set: [DV-B, removed]}
+    expect: BLOCK
+    codes: [PRESSURE_REACHES_OPEN_END]
+    note: Pump B discharge is live. Removing DV-B leaves the line open.
+  - name: Remove a blind (ambiguous)
+    scenario: condensate
+    request: {set: [BF-504, removed]}
+    expect: none
+    status: ERROR
+    note: For a blind, removed could mean the blind or the spool. Rejected.
+  - name: Relief block valve state unknown, pump start
+    scenario: condensate
+    setup: [{set: [RLV-504, unknown]}]
+    request: PTW-0511
+    expect: none
+    status: INCOMPLETE
+    note: The only thing between pump A and the blind is a valve nobody has checked.
+  - name: Unknown drain valve off the route
+    scenario: condensate
+    setup: [{set: [RLV-504, closed]}, {set: [DR-A, unknown]}]
+    request: PTW-0511
+    expect: CLEAR
+    note: DR-A leads only to the drain drum. Disclosed, but it does not decide anything.
+  - name: Unknown bypass valve with no work behind it
+    scenario: condensate
+    setup: [{set: [BV-1, unknown]}]
+    request: PTW-0850
+    expect: CLEAR
+  - name: Stale observation on a relied-on isolation
+    scenario: condensate
+    setup: [{observe: [EV-1, closed, "2026-11-14T08:00:00Z"]}]
+    request: PTW-0850
+    expect: none
+    status: INCOMPLETE
+    note: EV-1 was last seen closed 22 hours before the shift picture.
+  - name: Search bound too small to finish
+    scenario: condensate
+    request: PTW-0511
+    max_hops: 3
+    expect: none
+    status: INCOMPLETE
+    note: The walk cannot reach the blind within 3 hops. It must not say CLEAR.

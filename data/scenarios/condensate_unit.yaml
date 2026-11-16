@@ -1,5 +1,9 @@
 # Start-of-shift state: the plant plus the permits already active.
+# as_of is the time of this picture. Every component state in the plant file
+# counts as observed at as_of unless an observation below says otherwise.
 plant: ../plants/condensate_unit.yaml
+as_of: 2026-11-15T06:00:00Z
+max_observation_age_hours: 12
 permits:
   - id: PTW-0504
     title: PSV-504 recertification (relief valve removed to workshop)
