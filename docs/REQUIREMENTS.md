@@ -74,7 +74,7 @@ Permit status (authorization) is kept separate from component observed state. Ap
 | FR-01 | Core graph: Component, CONNECTED_TO, Permit, WORKS_ON, RELIES_ON | Schema and store contain them | DONE | `schema/schema.cypher`; both committed stores |
 | FR-02 | ENERGISES and OPERATES edges | Written when a permit is written | DONE | `queries/store.cypher` `permit_energises`, `permit_operates` |
 | FR-03 | `Evaluation` node with inputs snapshot, result, revision, timestamp | Every check saves one | DONE | `test_every_evaluation_is_recorded_with_a_snapshot`, `test_check_changes_no_plant_state_or_permits_and_records_one_evaluation` |
-| FR-04 | Component records `observed_at` and `observed_by` | Fields exist and are validated | DONE | `validate.plant`, scenario `observations`; `set --by --observed-at` |
+| FR-04 | Component records `observed_at` and `observed_by` | Fields exist and are validated | DONE | `validate.plant`, `validate.scenario`, `validate.observation`; `tests/test_validate.py` |
 | FR-05 | Pressure walk stops at barriers | Per-hop filter in a quantified path pattern | DONE | `queries/exposures.cypher`; `test_rule1_walk_stops_at_closed_valves_and_installed_blinds` |
 | FR-06 | Before/after reachability comparison | Hazards caused by a change are identified | DONE | `checks.assess`; `hazards.introduced` |
 | FR-07 | Existing, introduced and remaining hazards reported separately | `check` lists all three | DONE | `Result.hazards` (also `resolved`); `test_rule5_*` |

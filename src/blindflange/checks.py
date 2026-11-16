@@ -374,6 +374,14 @@ def set_states(conn, changes: list[dict], expect_revision: int | None = None, ma
 
 def _decide_and_write(conn, req, kind, expect_revision, max_hops, at, force, by=None, observed_at=None):
     current = store.info(conn)["revision"]
+    if req["type"] == "change":
+        problems = validate.observation(by, observed_at)
+        if problems:
+            result = Result(_describe(req), ERROR, None, revision=current, max_hops=max_hops,
+                            error="; ".join(problems))
+            result.evaluation_id = store.record_evaluation(conn, kind, dict(req, by=by, observed_at=observed_at),
+                                                           _for_record(result), store.snapshot(conn))
+            return result, False
     if expect_revision is not None and expect_revision != current:
         result = Result(_describe(req), ERROR, None, revision=current, max_hops=max_hops,
                         error=f"stale revision: prepared against revision {expect_revision}, "

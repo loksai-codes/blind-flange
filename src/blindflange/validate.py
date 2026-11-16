@@ -221,6 +221,16 @@ def changes(items, kinds_by_tag: dict[str, str] | None = None, where: str = "cha
     return problems
 
 
+def observation(by, observed_at=None) -> list[str]:
+    """Check who made an observation and, if given, when."""
+    problems = []
+    if not _text(by):
+        problems.append("an observation needs an observer: give --by with a name")
+    if observed_at is not None and not is_timestamp(observed_at):
+        problems.append(f"observed_at must be a timestamp like 2026-11-15T06:00:00Z, got {observed_at!r}")
+    return problems
+
+
 def max_hops(value) -> list[str]:
     if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_HOPS_LIMIT:
         return [f"max_hops must be a whole number from 1 to {MAX_HOPS_LIMIT}, got {value!r}"]
@@ -253,6 +263,8 @@ def scenario(data) -> list[str]:
         problems += _unknown_keys(o, OBSERVATION_KEYS, w)
         if "observed_at" in o and not is_timestamp(o["observed_at"]):
             problems.append(f"{w}: 'observed_at' must be a timestamp")
+        if "observed_by" in o and not _text(o["observed_by"]):
+            problems.append(f"{w}: 'observed_by' must be text naming the observer")
     permits = data.get("permits", [])
     if not isinstance(permits, list):
         return problems + ["scenario: 'permits' must be a list"]
