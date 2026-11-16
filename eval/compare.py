@@ -13,9 +13,11 @@ import sys
 import time
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE.parent / "src"))
 sys.path.insert(0, str(HERE))
-from blindflange import checks, store  # noqa: E402
+try:                                    # the installed package (pip install -e . or pip install .)
+    from blindflange import checks, store  # noqa: E402
+except ImportError:
+    raise SystemExit("blindflange is not installed. Run: pip install -e .") from None
 import oracle  # noqa: E402
 
 PERMITS = HERE.parent / "data" / "permits"
