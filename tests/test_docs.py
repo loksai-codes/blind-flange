@@ -90,7 +90,8 @@ def test_published_numbers_match_the_measured_ones():
 
 def test_review_pack_exists_and_the_readme_does_not_claim_a_review():
     pack = (ROOT / "docs" / "REVIEW_PACK.md").read_text(encoding="utf-8")
-    assert pack.count("
-1. **") == 1 and "2. **How should a removed component" in pack and "3. **Which links" in pack
+    for question in ("1. **Is the stopping rule realistic?**", "2. **How should a removed component be treated?**",
+                     "3. **Which links look wrong?**"):
+        assert question in pack
     assert "Practitioner review: pending" in README
     assert not re.search(r"(reviewed by|review by) (a |an )?(practising|process|operations)", README, re.I)
