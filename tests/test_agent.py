@@ -116,3 +116,34 @@ def test_exploration_tools_do_not_change_the_store(rl):
     before = Path(rl).read_bytes()
     agent.call(rl, "trace_path", {"from": "P-A", "to": "BF-504"})
     assert Path(rl).read_bytes() == before
+
+
+def test_agent_call_waits_briefly_for_a_store_another_process_holds(rl):
+    import threading
+    import time
+    opened = threading.Event()
+
+    def hold():                                      # another writer holds the file for a moment
+        conn = store.connect(rl)                     # Relate connections are thread-affine
+        opened.set()
+        time.sleep(0.6)
+        conn.close()
+
+    t = threading.Thread(target=hold)
+    t.start()
+    opened.wait(10)
+    try:
+        d = agent.call(rl, "find_tags", {"text": "pump A"})
+    finally:
+        t.join()
+    assert d["matches"]
+
+
+def test_agent_call_gives_up_with_a_clear_error_if_the_store_stays_locked(rl, monkeypatch):
+    monkeypatch.setattr(agent, "LOCK_WAIT_SECONDS", 0.3)
+    holder = store.connect(rl)
+    try:
+        with pytest.raises(store.StoreError, match="another process"):
+            agent.call(rl, "find_tags", {"text": "pump A"})
+    finally:
+        holder.close()

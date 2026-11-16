@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+import time
 
 from . import __version__, checks, store, validate
 
@@ -92,6 +93,21 @@ class ToolError(Exception):
     pass
 
 
+LOCK_WAIT_SECONDS = 5.0                 # how long a tool call waits for a store another process holds
+
+
+def _open(path: str, read_only: bool = False):
+    """Open the store, waiting briefly if another process (the CLI, say) holds it."""
+    deadline = time.monotonic() + LOCK_WAIT_SECONDS
+    while True:
+        try:
+            return store.connect(path, read_only=read_only)
+        except store.StoreError as e:
+            if "another process" not in str(e) or time.monotonic() >= deadline:
+                raise
+            time.sleep(0.1)
+
+
 def _summary(r: checks.Result) -> dict:
     d = r.to_dict()
     d["findings"] = [{k: v for k, v in f.items() if v not in (None, [], "")} for f in d["findings"]]
@@ -114,14 +130,14 @@ def call(store_path: str, name: str, args: dict) -> dict:
             if not changes:
                 raise ToolError("'changes' is required")
             req, hyp = (checks.permit_request(permit), changes) if permit else (checks.change_request(changes), [])
-        conn = store.connect(store_path)
+        conn = _open(store_path)
         try:
             r = checks.evaluate(conn, req, hyp, max_hops, kind=f"agent:{name}")
         finally:
             conn.close()
         return _summary(r)
     if name == "reach":
-        conn = store.connect(store_path, read_only=True)
+        conn = _open(store_path, read_only=True)
         try:
             store.component(conn, args.get("tag", ""))
             info = store.info(conn)
@@ -130,7 +146,7 @@ def call(store_path: str, name: str, args: dict) -> dict:
             conn.close()
         return {"tag": args["tag"], "reaches": got}
     if name == "handover":
-        conn = store.connect(store_path, read_only=True)
+        conn = _open(store_path, read_only=True)
         try:
             info = store.info(conn)
             permits = store.rows(conn, store.query("handover"))
@@ -138,6 +154,7 @@ def call(store_path: str, name: str, args: dict) -> dict:
             unconfirmed = store.run(conn, "uncertain", stale_before=store.stale_before(info))
         finally:
             conn.close()
+        _open(store_path, read_only=True).close()        # wait for the lock, then work on a copy
         with store.scratch_copy(store_path) as conn:
             survey = checks.survey(conn)
         return {"store": info, "active_permits": permits, "not_normal": off, "unconfirmed": unconfirmed,
@@ -146,13 +163,13 @@ def call(store_path: str, name: str, args: dict) -> dict:
         words = re.findall(r"[A-Za-z0-9]+", args.get("text", ""))
         if not words:
             raise ToolError("nothing to search for")
-        conn = store.connect(store_path, read_only=True)
+        conn = _open(store_path, read_only=True)
         try:
             return {"matches": store.run(conn, "find", q=" OR ".join(words))}
         finally:
             conn.close()
     if name == "trace_path":
-        conn = store.connect(store_path, read_only=True)
+        conn = _open(store_path, read_only=True)
         try:
             for key in ("from", "to"):
                 store.component(conn, args.get(key, ""))
@@ -167,7 +184,7 @@ def call(store_path: str, name: str, args: dict) -> dict:
         return {"from": args["from"], "to": args["to"], **routes}
     if name == "explain_finding":
         from . import report
-        conn = store.connect(store_path, read_only=True)
+        conn = _open(store_path, read_only=True)
         try:
             e = store.get_evaluation(conn, args.get("evaluation_id", ""))
         finally:
@@ -201,7 +218,7 @@ def call(store_path: str, name: str, args: dict) -> dict:
                 "other_permit": f.get("permit"), "steps": steps, "evidence": f.get("evidence", []),
                 "against_flow": f.get("against_flow", []), "incomplete_reasons": result.get("incomplete_reasons", [])}
     if name == "get_evaluation":
-        conn = store.connect(store_path, read_only=True)
+        conn = _open(store_path, read_only=True)
         try:
             e = store.get_evaluation(conn, args.get("id", ""))
             same = checks.replay(conn, e["id"])[2]

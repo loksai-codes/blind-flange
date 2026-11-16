@@ -120,22 +120,34 @@ def cmd_close(a) -> int:
 
 def cmd_reach(a) -> int:
     hypothetical = checks.parse_changes(a.set or [])
-    conn = store.connect(a.store, read_only=not hypothetical)
-    try:
-        store.component(conn, a.tag)
-        info = store.info(conn)
-        at = store.assessment_time(info, a.at)
-        stale_before = store.hours_before(at, info["max_age_hours"])
-        problems = validate.changes(hypothetical, store.kinds_for(conn, [h["tag"] for h in hypothetical])) \
-            if hypothetical else []
-        if problems:
-            raise store.ValidationError("what-if", problems)
-        with store.transaction(conn, commit=False):
-            for h in hypothetical:
-                store.set_state(conn, h["tag"], h["to"], at, "what-if")
-            got = store.rows(conn, store.query("reach", a.max_hops), tag=a.tag, stale_before=stale_before)
-    finally:
-        conn.close()
+    if hypothetical:                                  # the what-if writes inside a rolled-back transaction
+        with store.scratch_copy(a.store) as conn:
+            got = _reach(conn, a, hypothetical)
+    else:
+        conn = store.connect(a.store, read_only=True)
+        try:
+            got = _reach(conn, a, hypothetical)
+        finally:
+            conn.close()
+    return _print_reach(a, got, hypothetical)
+
+
+def _reach(conn, a, hypothetical) -> list[dict]:
+    store.component(conn, a.tag)
+    info = store.info(conn)
+    at = store.assessment_time(info, a.at)
+    stale_before = store.hours_before(at, info["max_age_hours"])
+    problems = validate.changes(hypothetical, store.kinds_for(conn, [h["tag"] for h in hypothetical])) \
+        if hypothetical else []
+    if problems:
+        raise store.ValidationError("what-if", problems)
+    with store.transaction(conn, commit=False):
+        for h in hypothetical:
+            store.set_state(conn, h["tag"], h["to"], at, "what-if")
+        return store.rows(conn, store.query("reach", a.max_hops), tag=a.tag, stale_before=stale_before)
+
+
+def _print_reach(a, got, hypothetical) -> int:
     if a.json:
         print(json.dumps(got, indent=2))
         return 0

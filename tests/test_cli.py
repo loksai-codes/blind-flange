@@ -105,3 +105,10 @@ def test_handover_does_not_change_the_store_file(rl):
     before = rl.read_bytes()
     assert run("handover", "--store", rl).returncode == 0
     assert rl.read_bytes() == before
+
+
+def test_reach_with_a_what_if_does_not_change_the_store_file(rl):
+    before = rl.read_bytes()
+    r = run("reach", "P-A", "--set", "RLV-504=closed", "--store", rl)
+    assert r.returncode == 0 and "RLV-504" in r.stdout
+    assert rl.read_bytes() == before
