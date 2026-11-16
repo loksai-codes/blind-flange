@@ -21,7 +21,8 @@ import relate
 import yaml
 
 from . import validate
-from .model import DEFAULT_MAX_AGE_HOURS, DEFAULT_MAX_HOPS, KINDS, LABELS, MAX_HOPS_LIMIT, RELATIONS, label_for
+from .model import (DEFAULT_MAX_AGE_HOURS, DEFAULT_MAX_HOPS, KINDS, LABELS, MAX_HOPS_LIMIT, RELATIONS,
+                    RULES_VERSION, label_for)
 
 MEMORY = ":memory:"
 
@@ -533,7 +534,7 @@ def set_state(conn, tag: str, state: str, at: str, by: str) -> None:
 def record_evaluation(conn, kind: str, request: dict, result: dict, snap: dict, at: str | None = None) -> str:
     """Append an Evaluation. It records; it never changes plant state or permits."""
     with transaction(conn, commit=True):
-        got = run(conn, "evaluation_record", at=at or now(), kind=kind,
+        got = run(conn, "evaluation_record", at=at or now(), kind=kind, rules_version=RULES_VERSION,
                   request_id=request.get("id") or "", assessment_status=result.get("assessment_status"),
                   conflict_verdict=result.get("conflict_verdict"),
                   request=json.dumps(request, sort_keys=True),

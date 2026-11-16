@@ -142,6 +142,21 @@ revision.
   verified and clears any plan on that component.
 - A what-if (`whatif --set`) may assume a planned state hypothetically.
 
+### Rules history
+Every Evaluation records the rules version it was made under (`model.RULES_VERSION`).
+`replay` reports both versions; a difference across versions is expected, a
+difference under the same version means the record does not reproduce. A test
+fingerprints the rule-defining queries so the version cannot drift silently.
+
+| Version | Date | What changed |
+| --- | --- | --- |
+| 1 | 15 Nov 2026 | First checks: one verdict (BLOCK, HOLD, CLEAR), unbounded walk, unknown state treated as closed. |
+| 2 | 16 Nov 2026 | Two result fields; PROVEN and POSSIBLE passes; unknown and stale states never barriers; search-bound probe; existing hazards give HOLD; removed components are open ends; starting equipment through `set` is checked. |
+| 3 | 16 Nov 2026 | Approval records planned states, which are unconfirmed; WORKSITE_SHARED; only BLOCK one-hop findings hide a path finding. |
+| 4 | 16 Nov 2026 | Snapshot and live stores (assessment time); declared one-way flow on check valves; a proven hazard is not made incomplete by another unconfirmed route. |
+
+Evaluations recorded before versioning have no rules version and replay as "unknown".
+
 ### Search bound
 Every walk is bounded (default 100 hops, at most 499 because Relate refuses
 literal bounds above 500). `bound.cypher` walks one hop further and counts

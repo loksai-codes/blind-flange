@@ -221,11 +221,11 @@ def call(store_path: str, name: str, args: dict) -> dict:
         conn = _open(store_path, read_only=True)
         try:
             e = store.get_evaluation(conn, args.get("id", ""))
-            same = checks.replay(conn, e["id"])[2]
+            d = checks.replay_details(conn, e["id"])
         finally:
             conn.close()
         e.pop("snapshot")
-        return dict(e, replay_reproduces=same)
+        return dict(e, replay_reproduces=d["same"], current_rules_version=d["current_rules"])
     raise ToolError(f"unknown tool {name!r}")
 
 

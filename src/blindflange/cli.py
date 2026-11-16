@@ -282,16 +282,23 @@ def cmd_show(a) -> int:
 def cmd_replay(a) -> int:
     conn = store.connect(a.store, read_only=True)
     try:
-        recorded, replayed, same = checks.replay(conn, a.evaluation_id)
+        d = checks.replay_details(conn, a.evaluation_id)
     finally:
         conn.close()
+    recorded, replayed = d["recorded"], d["replayed"]
+    old = d["recorded_rules"] if d["recorded_rules"] is not None else "unknown (recorded before versioning)"
     print(f"{a.evaluation_id}: recorded {recorded['conflict_verdict'] or recorded['assessment_status']}, "
-          f"replayed {replayed['conflict_verdict'] or replayed['assessment_status']}.")
-    if same:
+          f"replayed {replayed['conflict_verdict'] or replayed['assessment_status']} "
+          f"(recorded under rules v{old}, replayed under rules v{d['current_rules']}).")
+    if d["same"]:
         print("  Reproduced exactly from the recorded snapshot.")
         return 0
     diff = sorted(k for k in recorded if recorded.get(k) != replayed.get(k))
     print(f"  Differs in: {', '.join(diff)}")
+    if d["recorded_rules"] != d["current_rules"]:
+        print("  Expected if the rules changed between those versions; see the rules history in docs/SPEC.md.")
+    else:
+        print("  Same rules version, different result: this record does not reproduce.")
     return 1
 
 

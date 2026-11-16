@@ -369,6 +369,17 @@ def _for_record(result: Result) -> dict:
 
 def replay(conn, eid: str) -> tuple[dict, dict, bool]:
     """Re-run a recorded evaluation on its own snapshot. Returns (recorded, replayed, same)."""
+    d = replay_details(conn, eid)
+    return d["recorded"], d["replayed"], d["same"]
+
+
+def replay_details(conn, eid: str) -> dict:
+    """Replay, plus the rules version the evaluation was recorded under and the current one.
+
+    A difference under the same rules version means the record is not reproducible.
+    A difference across versions is expected when the rules changed in between.
+    """
+    from .model import RULES_VERSION
     e = store.get_evaluation(conn, eid)
     req = dict(e["request"])
     hypothetical = req.pop("hypothetical", [])
@@ -380,7 +391,8 @@ def replay(conn, eid: str) -> tuple[dict, dict, bool]:
     finally:
         copy.close()
     replayed = _for_record(again)
-    return e["result"], replayed, replayed == e["result"]
+    return {"recorded": e["result"], "replayed": replayed, "same": replayed == e["result"],
+            "recorded_rules": e.get("rules_version"), "current_rules": RULES_VERSION}
 
 
 # ---------------------------------------------------------------- writes behind a check

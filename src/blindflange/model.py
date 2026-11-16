@@ -38,6 +38,14 @@ RELATIONS = {"works_on": "WORKS_ON", "relies_on": "RELIES_ON", "energises": "ENE
 
 PERMIT_STATUS = {"requested", "active", "closed"}
 
+# The rules an assessment follows. Every Evaluation records RULES_VERSION, so a
+# replay can say when a result was made under different rules. RULES_SHA is a
+# fingerprint of the rule-defining queries; tests/test_rules_version.py fails if
+# they change without a new version (and a line in the history in docs/SPEC.md).
+RULES_VERSION = 4
+RULES_FILES = ("exposures", "bound", "direct", "apply", "plan", "reach", "trace")
+RULES_SHA = "bc8cac2d195a8cab"
+
 # Defaults for an assessment.
 DEFAULT_MAX_HOPS = 100          # Relate refuses explicit path bounds above 500
 MAX_HOPS_LIMIT = 499            # the bound probe uses max_hops + 1
