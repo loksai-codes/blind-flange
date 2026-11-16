@@ -44,6 +44,36 @@ and again on Windows 11 with Python 3.12. Not yet verified on macOS.
   that pip generates can be blocked as unsigned. `python -m blindflange` runs
   the same code and is what the Makefile uses.
 
+## Verified on 16 Nov 2026 (Windows 11, Python 3.12, relate-db 1.0.1)
+- **Single-file mode depends on the name.** `relate.connect("x.rl")` makes one
+  file. Any other name (`x.rl.building`, `x.db`, `x`) makes a directory store.
+  Builds therefore write to `x.building.rl` and rename it, and the tool refuses
+  store paths that do not end in `.rl`.
+- **Path bounds must be literals.** `{1,$n}` is a syntax error. The queries use a
+  `__MAX_HOPS__` token that Python replaces with a validated integer.
+- **Explicit bounds above 500 are refused** with `TraversalDepthExceeded`
+  ("a safety limit ... raise it with --max-traversal-depth (up to 2000)").
+  `{1,500}` runs.
+- **Unbounded `+` is not limited.** On a 700-node chain, `((a)-[:C]-(b))+` walked
+  all 700 hops. This is why every walk here is explicitly bounded and
+  `queries/bound.cypher` reports when the bound cut a search short.
+- `{0,N}` quantifiers work with `SHORTEST 1`: the zero-hop path returns the start
+  node itself, so a live source that is also a worksite is found.
+- `EXISTS { (:Permit {id: $id})-[:ENERGISES]->(s) }` works inside `WHERE`.
+- `coalesce(x.state, 'unknown')` is how a missing property is made explicit;
+  without it `NOT x.state IN [...]` is null and a hop would be refused, which
+  would treat a component with no state as a barrier.
+- ISO-8601 UTC text compares correctly with `<` and `>=`, so staleness is a
+  string comparison against `$stale_before`.
+- A list of maps is accepted as a parameter (`UNWIND $ops AS op`) but **cannot
+  be stored as a property** (`InvalidPropertyType`). Evaluation snapshots are
+  stored as JSON text.
+- A second `relate.connect` on a file that is open read-write is refused with
+  `storage locked`, which is what keeps every write in one process.
+- Opening a store read-only and closing it leaves the file bytes unchanged. A
+  read-write connection rewrites the file on close even if every transaction
+  was rolled back.
+
 ## Observed but not relied on
 - A read-only connection accepted writes inside an explicit transaction that
   was then rolled back. This is not documented, so `check` opens the store
@@ -60,4 +90,5 @@ and again on Windows 11 with Python 3.12. Not yet verified on macOS.
 - The `relate` command-line tool and `relate serve --mcp`. `pip install
   relate-db` does not install a `relate` executable. Find the documented
   install route before planning around it.
-- Performance beyond a few hundred nodes.
+- Performance beyond a few hundred nodes. The 151-component gas plant takes
+  about 40 ms per assessment (eight queries, plus recording) on a laptop.
