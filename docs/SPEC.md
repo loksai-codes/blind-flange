@@ -179,7 +179,34 @@ from the Cypher. The eval and `tests/test_oracle.py` (120 random plants with
 loops, unknown, stale and removed states) check that it computes the same
 hazard sets as the graph.
 
+## Terms, against HSE HSG253
+HSG253, *The safe isolation of plant and equipment* (HSE, 2nd edition 2006,
+glossary page 79), is the UK guidance most process isolation procedures follow.
+This table maps the words used here to its words. Our words stay where they
+name something HSG253 does not define (a graph walk, a finding code). Paragraph
+numbers are HSG253's.
+
+| Here | HSG253 | Note |
+| --- | --- | --- |
+| isolation (`RELIES_ON`) | isolation point | HSG253's *isolation* covers pressure, electrical and mechanical energy. Here it means process (pressure) isolation only. |
+| barrier (`closed` valve, `installed` blind) | block valve; blank flange (blind), spade (slip-plate), spectacle plate | A closed valve counts as a barrier whatever its standard. See the simplification on isolation standard below. |
+| blind | blank flange (blind), spade, spectacle plate | One component kind covers all three. |
+| `integrity = 'temporary'` (blind not pressure-tested) | an isolation not yet proved (paras 166 to 168) | HSG253: "Do not rely on an isolation that is unproved". A live source reaching one that a permit relies on is a BLOCK. |
+| `removed` (open end) | physical disconnection, if done on purpose | Here an open end is a hazard to find, not an isolation method. A removed spool with live pressure behind it is a release point. |
+| worksite (`WORKS_ON`) | inside the isolation envelope, where intrusive work is done | The checks ask whether pressure can reach it from outside. |
+| SHARED_ISOLATION | separate work groups relying on a common isolation (para 81) | HSG253 asks for coordination through the permit system and multi-tagging. This check finds the common isolation; it does not tag anything. |
+| ISOLATION_REMOVED, `close` | reinstatement under multiple permits dependent on common isolation points (paras 184 and 185) | `close` lists isolations other permits still need, which is the check of cross-referenced permits para 185 asks for. |
+| permit coordinator (area authority) | permit issuer; *isolating authority* approves proposed isolations | Blind Flange supports these people. It approves nothing on its own. |
+| observation age limit, default 12 hours | short-duration work: within one operating shift | The default follows the shift, as HSG253's term does. A practitioner should confirm it. |
+
 ## Known simplifications
+- Isolation standard is not graded. HSG253 distinguishes positive isolation
+  (spade, blank, physical disconnection), proved valved isolation (double block
+  and bleed, confirmed through the bleed) and single-valve isolation, which it
+  treats as non-proved. Here any closed valve stops pressure, so a single
+  closed valve can be the only barrier behind a CLEAR. Choosing the right
+  standard for a job (HSG253's baseline isolation standard) stays with the
+  isolating authority.
 - Pressure is modelled as reachability. There is no pressure level or fluid.
   Flow direction exists only where it is declared: every check valve, pump and
   compressor. A stopped machine passes pressure from suction to discharge only.
