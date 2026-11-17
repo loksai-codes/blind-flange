@@ -397,30 +397,30 @@ footer .links a:hover { color: var(--gold); }
   To show the demo video, do ONE of these:
    1. YouTube or Vimeo: put the video id in data-youtube (e.g. data-youtube="dQw4w9WgXcQ") or a full
       embed URL in data-embed (e.g. data-embed="https://player.vimeo.com/video/123456").
-   2. A file: save it as docs/media/demo.mp4 (H.264, 1920x1080). Optional poster: docs/media/demo-poster.png.
+   2. A file: save it as docs/media/demo.mp4 (H.264, 1920x1080). Poster: docs/media/demo-poster.jpg.
   With neither, the player falls back to the animated terminal recording in media/demo.svg.
 -->
 <section class="film" id="film">
   <div class="wrap">
     <div class="sec-head rv">
       <span class="label">01 · The demo</span>
-      <h2 class="display">Two minutes, <em>one path</em></h2>
+      <h2 class="display">One minute, <em>one path</em></h2>
     </div>
     <div class="player rv d1" id="player" data-youtube="" data-embed="">
-      <video id="video" preload="metadata" playsinline controls poster="media/demo-poster.png">
+      <video id="video" preload="metadata" playsinline poster="media/demo-poster.jpg">
         <source src="media/demo.mp4" type="video/mp4">
       </video>
       <button class="play" id="play" type="button" aria-label="Play the demo video">
         <span class="btn"><svg width="30" height="34" viewBox="0 0 30 34" aria-hidden="true"><path d="M4 2 L28 17 L4 32 Z" fill="#F2B53A"/></svg></span>
-        <span class="cap label">Play · Blind Flange in under two minutes</span>
+        <span class="cap label">Play · Blind Flange in one minute</span>
       </button>
       <div class="fallback"><img src="media/demo.svg" alt="Blind Flange in a terminal: restarting train B is BLOCK, with the 12-hop path through the open bypass BV-231; closing BV-231 makes it CLEAR."></div>
     </div>
     <div class="film-meta rv d2">
       <div class="chapters">
-        <span class="label">The block</span><span class="label">Close a valve · Clear</span><span class="label">12 hops on a gas plant</span><span class="label">An agent asks</span>
+        <span class="label">Two jobs, same pipe</span><span class="label">12 hops to the blind</span><span class="label">Close one valve</span><span class="label">Every answer shows its path</span>
       </div>
-      <span class="label gold" id="film-note">Recorded from a fresh clone</span>
+      <span class="label gold" id="film-note">Real output · invented plant</span>
     </div>
   </div>
 </section>
@@ -715,7 +715,7 @@ footer .links a:hover { color: var(--gold); }
     src.addEventListener('error', fail);
     video.addEventListener('error', fail);
     if (video.networkState === 3) fail();
-    play.addEventListener('click', function () { video.play(); });
+    play.addEventListener('click', function () { video.controls = true; video.play(); });
     video.addEventListener('play', function () { player.classList.add('playing'); });
     video.addEventListener('pause', function () { if (video.currentTime === 0 || video.ended) player.classList.remove('playing'); });
     video.addEventListener('ended', function () { player.classList.remove('playing'); });
