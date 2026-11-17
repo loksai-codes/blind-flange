@@ -1,149 +1,108 @@
-# DESIGN.md — "Mended in Gold" (Naosu)
+# DESIGN.md: "Redline" (Blind Flange)
 
-Kintsugi-inspired landing page: a dark, cool indigo page with a warm gold accent and a soft celadon (pale jade) for type.
-Rule from the source: **warm page → cool accent, cool page → warm accent.** This page is cool (indigo), so the accent is warm (gold).
+An engineering drawing, marked up. The page is cream drafting paper with a faint
+Prussian-blue grid; the plant is drawn in blue linework; the conflict is marked in red,
+the way an engineer redlines a P&ID. Red appears only where something is wrong or where
+the reader should act.
+
+Replaces the earlier "Mended in Gold" palette (indigo, celadon, gold). The fonts stay.
 
 ---
 
-## 1. Colour palette (exact)
+## 1. Colour
 
-| Token | Name | Hex | RGB | Role |
-|---|---|---|---|---|
-| `--indigo` | Indigo | `#0B1325` | 11, 19, 37 | Page background, base surface |
-| `--celadon` | Celadon | `#A9CDBE` | 169, 205, 190 | Headline type, ceramic, secondary text |
-| `--gold` | Gold | `#F2B53A` | 242, 181, 58 | Accent: gold seams, glows, highlights, hover |
+| Token | Name | Hex | Role |
+|---|---|---|---|
+| `--cream` | Ricotta Cream | `#F0E8D8` | Page (60%) |
+| `--blue` | Prussian Blue | `#1B3350` | Text, linework, blue bands (30%) |
+| `--red` | Lobster Red | `#F03A2A` | Accent (10%): the conflict path, markup, large display words |
 
-These hex codes are the ones printed on the source swatches. Pixel sampling of the screenshot agrees with them within video-compression error (`#0B1326`, `#A5D0BD`).
+### Derived
 
-### Supporting tints (derived)
+| Token | Hex | Use | Contrast |
+|---|---|---|---|
+| `--cream-2` | `#E8DDC8` | Raised paper (proof section, selected tab) | |
+| `--blue-2` | `#142840` | Deeper band: video frame, terminal, footer | |
+| `--red-ink` | `#B8281B` | Red for small text, solid buttons, BLOCK badge | 5.1:1 on cream; cream on it 5.1:1 |
+| `--red-on-blue` | `#FF6A5C` | Red text on blue bands | 4.6:1 on blue |
+| `--ink-muted` | `#4A5D74` | Secondary text on cream | 5.5:1 |
+| `--on-blue-muted` | `#B9BFC6` | Secondary text on blue | 6.9:1 |
+| `--line` | `rgba(27,51,80,.18)` | Hairlines | |
+| `--line-strong` | `#7A8696` | Borders of interactive controls | 3.0:1 |
+| `--grid` / `--grid-major` | blue at 5.5% / 9% | Drafting grid, 24px minor, 96px major | |
 
-| Token | Hex | Use |
-|---|---|---|
-| `--indigo-900` | `#070D1A` | Deepest shadow, vignette edges |
-| `--indigo-800` | `#0B1325` | = base |
-| `--indigo-700` | `#141E36` | Raised surfaces, cards |
-| `--line` | `rgba(169, 205, 190, 0.35)` | Hairlines, pill-button border |
-| `--text-muted` | `rgba(169, 205, 190, 0.65)` | Nav links, footer meta |
-| `--gold-glow` | `rgba(242, 181, 58, 0.45)` | Glows and light bloom around the gold seams |
-
-### Proportion
-- ~80% Indigo (background)
-- ~15% Celadon (type and ceramic)
-- ~5% Gold (accent only. Never use it for body text or large fills.)
+### Rules
+- Lobster Red `#F03A2A` is 3.2:1 on cream: use it only for graphics and text 24px and larger.
+  Small red text uses `--red-ink`.
+- Blue text on cream is 10.5:1; cream on blue is 10.5:1.
+- Red marks the conflict, the primary action, and section rules. Never body text, never large fills.
+- No glows on the cream page. Depth comes from offset hard shadows (`6px 6px 0`) like a drawing
+  stamp, and from the blue bands.
 
 ---
 
 ## 2. Typography
 
-The swatch card names the colours but not the fonts, so the fonts below are the closest matches I could identify by eye. Confirm them with a font-ID tool such as WhatTheFont if you need the original typeface.
-
-### Display / Headline: "MENDED IN GOLD"
-- **Font:** `Instrument Serif` (Google Fonts). Fallbacks: `Bodoni Moda`, `Playfair Display`, serif
-- Style: condensed, high-contrast, sharp serifs, ALL CAPS
-- Weight: 400
-- Size: `clamp(4rem, 9vw, 8.5rem)`
-- Line-height: `0.88` (lines nearly touch)
-- Letter-spacing: `-0.01em`
-- Colour: `--celadon`, with thin gold "crack" lines and drips over the letters (texture or SVG overlay)
-
-### Logo: "NAOSU"
-- **Font:** `Inter` (or any geometric sans), weight 500
-- Uppercase, letter-spacing `0.45em`, size `14px`, colour `--celadon`
-
-### Nav / UI labels: REPAIRS · GALLERY · VISIT
-- **Font:** `Inter`, weight 500
-- Size `10–11px`, uppercase, letter-spacing `0.28em`
-- Colour: `--text-muted`; on hover, `--gold`
-
-### Meta line: "URUSHI LACQUER · 24K GOLD · 6 TO 8 WEEKS"
-- **Font:** `Inter`, weight 500, size `10px`, uppercase, letter-spacing `0.22em`
-- Colour `--text-muted`, separated by a centred dot ` · `
+- **Display:** `Instrument Serif`, uppercase, line-height 0.88 to 0.9, `-0.01em`.
+  The emphasised word is italic, lower case, in red: "The conflict is a *path*".
+- **Text and UI:** `Inter`, 16px body, labels 11px uppercase at `0.22em`, weight 500 to 600.
+- **Drawing labels and code:** system mono (`ui-monospace`, Cascadia Mono, Consolas).
 
 ```css
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap');
 ```
 
 ---
 
-## 3. Layout (desktop, 16:9 hero)
+## 3. Layout
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│ NAOSU                REPAIRS  GALLERY  VISIT  (SEND US YOUR BREAK →) │
-│                                                              │
-│  MENDED                         [ shattered celadon bowl,     │
-│  IN GOLD                          gold seams, floating ]      │
-│                                                              │
-│                                  [ dark stone plinth ]        │
-│ URUSHI LACQUER · 24K GOLD · 6 TO 8 WEEKS                     │
-└──────────────────────────────────────────────────────────────┘
-```
-- Container padding: `48px` sides, `32px` top
-- Nav: logo on the left, links and CTA on the right, gap `48px`
-- Headline: left column, vertically centred, about 45% of the width
-- Hero image: right column, bowl breaking apart above a rough dark stone plinth
-- Meta line: bottom-left, `32px` from the bottom edge
+- Five sections, about five screens on desktop: hero, demo (blue band), how it works,
+  proof (raised paper), try it (blue band), footer (deep blue).
+- Container 1200px; side padding 48 / 32 / 16px.
+- Spacing on a 4px scale: 4, 8, 12, 16, 24, 32, 48, 64, 96, 128.
+- Section heads: display title left, a small label right with a 2px red rule above it.
 
 ---
 
 ## 4. Components
 
-### CTA pill: "SEND US YOUR BREAK →"
-```css
-.cta {
-  font: 500 10px/1 'Inter', sans-serif;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--celadon);
-  padding: 8px 16px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: transparent;
-  transition: all .25s ease;
-}
-.cta:hover { border-color: var(--gold); color: var(--gold); }
-```
+- **Solid button:** `--red-ink` with cream text; hover turns it blue. On blue bands: `--red`
+  with blue text; hover turns it cream.
+- **Outline button:** `--line-strong` border, blue text; hover red.
+- **Badges:** BLOCK solid `--red-ink`; HOLD red outline; CLEAR solid blue; INCOMPLETE dashed blue.
+- **Redline circle:** a hand-drawn red loop around the item at fault (the blind in the hero).
+- **Title block:** a mono, boxed strip like a drawing's title block (drawing, plant, result).
+- **Focus:** 2px outline, blue on cream, cream on blue bands, 3px offset.
 
 ---
 
-## 5. Imagery and effects
-- **Lighting:** a single warm light source; gold seams glow and drip, with tiny floating gold particles (embers)
-- **Background:** Indigo with a subtle dark grunge or plaster texture and a warm bloom behind the object
-- **Ceramic:** matte celadon glaze, cracked into large shards, with every seam filled in gold
-- **Base:** rough, near-black volcanic stone
+## 5. Motion
 
-```css
-.hero { background:
-  radial-gradient(60% 60% at 70% 55%, rgba(242,181,58,.18), transparent 70%),
-  var(--indigo); }
-.gold-glow { filter: drop-shadow(0 0 12px var(--gold-glow)); }
-```
+- On load: the red underline draws under the headline, the red path draws along the pipes,
+  the red circle closes around the blind, the result card rises. One dot travels the path.
+- Ease-out `cubic-bezier(.2,.7,.2,1)`. No bounce. Everything stops under
+  `prefers-reduced-motion`.
 
 ---
 
-## 6. CSS tokens
+## 6. Tokens
 
 ```css
 :root {
-  --indigo: #0B1325;
-  --celadon: #A9CDBE;
-  --gold: #F2B53A;
-
-  --indigo-900: #070D1A;
-  --indigo-700: #141E36;
-  --line: rgba(169,205,190,.35);
-  --text-muted: rgba(169,205,190,.65);
-  --gold-glow: rgba(242,181,58,.45);
-
-  --font-display: 'Instrument Serif', 'Bodoni Moda', 'Playfair Display', serif;
+  --cream: #F0E8D8; --cream-2: #E8DDC8;
+  --blue: #1B3350; --blue-2: #142840;
+  --red: #F03A2A; --red-ink: #B8281B; --red-on-blue: #FF6A5C;
+  --ink: var(--blue); --ink-muted: #4A5D74;
+  --line: rgba(27,51,80,.18); --line-strong: #7A8696;
+  --on-blue: #F0E8D8; --on-blue-muted: #B9BFC6;
+  --font-display: 'Instrument Serif', serif;
   --font-ui: 'Inter', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
 }
-body { background: var(--indigo); color: var(--celadon); font-family: var(--font-ui); }
-h1   { font-family: var(--font-display); text-transform: uppercase; line-height: .88; }
 ```
 
-## 7. Tailwind (optional)
-```js
-colors: { indigo: '#0B1325', celadon: '#A9CDBE', gold: '#F2B53A' },
-fontFamily: { display: ['Instrument Serif','serif'], ui: ['Inter','sans-serif'] }
-```
+## 7. Do and don't
+- Do keep red rare: if everything is marked, nothing is.
+- Do label the plants as illustrative wherever a drawing appears.
+- Don't use Lobster Red for small text on cream.
+- Don't add gradients or glows to the cream page.
