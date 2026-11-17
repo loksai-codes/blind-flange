@@ -5,124 +5,732 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Blind Flange</title>
 <meta name="description" content="Permit-to-work conflict checks over a plant's piping graph, on Relate. Every finding carries the path that proves it, and the tool withholds CLEAR when it cannot know.">
+<meta name="theme-color" content="#0B1325">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-:root { --bg:#fbfaf7; --fg:#1d1d1b; --muted:#5f5e59; --line:#dcd8cd; --card:#ffffff; --accent:#b3261e;
-  --clear:#1e7a3c; --amber:#9a5a00; --code:#f1eee6; }
-@media (prefers-color-scheme: dark) { :root { --bg:#141413; --fg:#ecebe6; --muted:#a3a19a; --line:#34332f;
-  --card:#1c1c1a; --accent:#ff8a80; --clear:#7bd88f; --amber:#f2a33a; --code:#22221f; } }
+:root {
+  --indigo: #0B1325;
+  --celadon: #A9CDBE;
+  --gold: #F2B53A;
+  --indigo-900: #070D1A;
+  --indigo-700: #141E36;
+  --line: rgba(169,205,190,.35);
+  --hair: rgba(169,205,190,.14);
+  --text-muted: rgba(169,205,190,.65);
+  --text-body: rgba(169,205,190,.86);
+  --gold-glow: rgba(242,181,58,.45);
+  --font-display: 'Instrument Serif', 'Bodoni Moda', 'Playfair Display', serif;
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', Consolas, 'SF Mono', Menlo, monospace;
+  --pad: 48px;
+}
 * { box-sizing: border-box; }
-body { margin:0; background:var(--bg); color:var(--fg); font:17px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
-main { max-width: 900px; margin: 0 auto; padding: 48px 16px 80px; }
-h1 { font-size: 44px; line-height: 1.1; margin: 0 0 12px; letter-spacing: -0.02em; }
-h2 { font-size: 26px; margin: 56px 0 12px; letter-spacing: -0.01em; }
-h3 { font-size: 18px; margin: 24px 0 6px; }
-p.lede { font-size: 21px; color: var(--muted); margin: 0 0 24px; }
-a { color: inherit; text-underline-offset: 3px; }
-.note { color: var(--muted); font-size: 15px; }
-.badge { display:inline-block; font: 700 13px/1 ui-monospace, Consolas, monospace; padding: 5px 8px; border-radius: 4px; color: #fff; }
-.b-block { background: #b3261e; } .b-clear { background: #1e7a3c; } .b-inc { background: #9a5a00; } .b-hold { background: #7a5c00; }
-figure { margin: 20px 0; } figure img { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); display: block; }
-figcaption { color: var(--muted); font-size: 14px; margin-top: 6px; }
-pre, code { font-family: ui-monospace, Consolas, "Cascadia Mono", monospace; }
-pre { background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 14px; line-height: 1.5; }
-code { background: var(--code); padding: 1px 5px; border-radius: 4px; font-size: 0.92em; }
-pre code { background: none; padding: 0; }
-table { border-collapse: collapse; width: 100%; font-size: 15px; }
-td, th { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
-th { font-weight: 600; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
-.card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
-.card h3 { margin-top: 0; }
-.links a { margin-right: 18px; }
-.warn { border-left: 4px solid var(--amber); padding: 8px 14px; background: var(--card); }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--indigo); color: var(--celadon); font: 400 16px/1.65 var(--font-ui);
+  -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+::selection { background: var(--gold); color: var(--indigo); }
+a { color: inherit; text-decoration-color: var(--line); text-underline-offset: 4px; transition: color .25s, text-decoration-color .25s; }
+a:hover { color: var(--gold); text-decoration-color: var(--gold); }
+img { max-width: 100%; display: block; }
+code, pre { font-family: var(--font-mono); }
+
+/* grain over everything */
+body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 100; opacity: .07; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+/* ---------- shared type ---------- */
+.label { font: 500 11px/1.4 var(--font-ui); letter-spacing: .28em; text-transform: uppercase; color: var(--text-muted); }
+.label.gold { color: var(--gold); }
+.display { font-family: var(--font-display); font-weight: 400; text-transform: uppercase; line-height: .9; letter-spacing: -.01em; margin: 0; color: var(--celadon); }
+.display em { font-style: italic; text-transform: none; color: var(--gold); text-shadow: 0 0 28px var(--gold-glow); }
+h2.display { font-size: clamp(2.6rem, 6vw, 5.2rem); }
+h3 { font: 600 15px/1.4 var(--font-ui); letter-spacing: .02em; margin: 0 0 8px; color: var(--celadon); }
+p { margin: 0 0 16px; color: var(--text-body); }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 0 var(--pad); }
+section { position: relative; padding: 140px 0; }
+.sec-head { display: grid; grid-template-columns: 220px 1fr; gap: 32px; margin-bottom: 64px; align-items: start; }
+.sec-head .label { padding-top: 14px; border-top: 1px solid var(--line); }
+.lede { font-size: 19px; line-height: 1.6; max-width: 640px; }
+
+/* ---------- buttons ---------- */
+.cta { display: inline-flex; align-items: center; gap: 10px; font: 500 11px/1 var(--font-ui); letter-spacing: .22em; text-transform: uppercase;
+  color: var(--celadon); padding: 13px 22px; border: 1px solid var(--line); border-radius: 999px; background: transparent;
+  text-decoration: none; transition: all .25s ease; cursor: pointer; white-space: nowrap; }
+.cta:hover { border-color: var(--gold); color: var(--gold); box-shadow: 0 0 24px -6px var(--gold-glow); }
+.cta.solid { background: var(--gold); border-color: var(--gold); color: var(--indigo); font-weight: 600; }
+.cta.solid:hover { background: transparent; color: var(--gold); }
+.cta.sm { padding: 8px 16px; font-size: 10px; }
+.cta .arr { transition: transform .25s; }
+.cta:hover .arr { transform: translateX(4px); }
+
+/* ---------- nav ---------- */
+nav.top { position: fixed; top: 0; left: 0; right: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between;
+  padding: 24px var(--pad); transition: background .3s, padding .3s, border-color .3s; border-bottom: 1px solid transparent; }
+nav.top.scrolled { background: rgba(7,13,26,.82); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); padding: 14px var(--pad); border-color: var(--hair); }
+.logo { font: 500 14px/1 var(--font-ui); letter-spacing: .45em; text-transform: uppercase; color: var(--celadon); text-decoration: none; display: flex; align-items: center; gap: 12px; }
+.logo svg { flex: none; }
+.navlinks { display: flex; align-items: center; gap: 40px; }
+.navlinks a.nl { font: 500 10.5px/1 var(--font-ui); letter-spacing: .28em; text-transform: uppercase; color: var(--text-muted); text-decoration: none; }
+.navlinks a.nl:hover { color: var(--gold); }
+
+/* ---------- hero ---------- */
+.hero { min-height: 100vh; min-height: 100svh; position: relative; display: flex; flex-direction: column; justify-content: center;
+  padding: 120px 0 96px; overflow: hidden;
+  background: radial-gradient(55% 60% at 72% 52%, rgba(242,181,58,.16), transparent 70%),
+              radial-gradient(120% 90% at 50% 0%, transparent 55%, var(--indigo-900) 100%), var(--indigo); }
+.hero-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.05fr); gap: 24px; align-items: center; }
+.hero h1 { font-size: clamp(3.3rem, 8.6vw, 8.5rem); line-height: .88; position: relative; display: inline-block; }
+.hero h1 .ln { display: block; }
+.crack { position: absolute; inset: -4% -2%; width: 104%; height: 108%; overflow: visible; pointer-events: none; }
+.crack path { fill: none; stroke: var(--gold); stroke-width: 1.6; stroke-linejoin: round; filter: drop-shadow(0 0 5px var(--gold-glow)) drop-shadow(0 0 14px var(--gold-glow));
+  stroke-dasharray: 1400; stroke-dashoffset: 1400; animation: draw 2.4s .5s cubic-bezier(.6,.1,.2,1) forwards; }
+.crack path.thin { stroke-width: .9; animation-delay: 1.5s; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+.hero .lede { margin: 36px 0 40px; max-width: 520px; }
+.hero .actions { display: flex; flex-wrap: wrap; gap: 14px; }
+.hero-meta { position: absolute; left: 0; right: 0; bottom: 32px; }
+.hero-meta .wrap { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+.hero-meta .label { font-size: 10px; letter-spacing: .22em; }
+.scroll-cue { display: inline-flex; align-items: center; gap: 10px; }
+.scroll-cue i { display: block; width: 1px; height: 28px; background: linear-gradient(var(--gold), transparent); animation: cue 2s infinite; }
+@keyframes cue { 0% { transform: scaleY(0); transform-origin: top; } 50% { transform: scaleY(1); transform-origin: top; } 51% { transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
+
+/* plant graph */
+.plant { position: relative; }
+.plant svg { width: 100%; height: auto; overflow: visible; }
+.plant .edge { stroke: var(--celadon); stroke-opacity: .28; stroke-width: 1.2; fill: none; }
+.plant .edge.dash { stroke-dasharray: 3 5; }
+.plant .node { fill: var(--indigo); stroke: var(--celadon); stroke-opacity: .55; stroke-width: 1.2; }
+.plant .node.dim { stroke-opacity: .3; }
+.plant .tag { font: 500 10px var(--font-ui); letter-spacing: .16em; fill: var(--text-muted); }
+.plant .tag.on { fill: var(--celadon); }
+.plant .tag.g { fill: var(--gold); }
+.plant .seam { fill: none; stroke: var(--gold); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round;
+  filter: drop-shadow(0 0 6px var(--gold-glow)) drop-shadow(0 0 18px var(--gold-glow));
+  stroke-dasharray: 900; stroke-dashoffset: 900; animation: draw 2.6s 1.1s cubic-bezier(.5,.1,.2,1) forwards; }
+.plant .hit { fill: var(--gold); filter: drop-shadow(0 0 10px var(--gold)); opacity: 0; animation: pop .6s 3.5s forwards; }
+.plant .ring { fill: none; stroke: var(--gold); stroke-width: 1; opacity: 0; transform-box: fill-box; transform-origin: center; animation: ring 2.6s 3.6s infinite; }
+@keyframes pop { to { opacity: 1; } }
+@keyframes ring { 0% { opacity: .9; transform: scale(1); } 100% { opacity: 0; transform: scale(3.2); } }
+.plant .pulse { fill: #fff3d6; filter: drop-shadow(0 0 6px var(--gold)); }
+.plant-card { position: absolute; right: 2%; bottom: -2%; background: rgba(7,13,26,.78); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; max-width: 280px; opacity: 0; transform: translateY(10px);
+  animation: rise .8s 3.9s forwards; }
+.plant-card p { font-size: 13px; margin: 6px 0 0; line-height: 1.5; }
+@keyframes rise { to { opacity: 1; transform: none; } }
+
+/* embers */
+.embers { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.embers span { position: absolute; bottom: -10px; width: 3px; height: 3px; border-radius: 50%; background: var(--gold);
+  box-shadow: 0 0 8px 2px var(--gold-glow); opacity: 0; animation: ember linear infinite; }
+@keyframes ember { 0% { opacity: 0; transform: translate(0,0); } 10% { opacity: .9; } 80% { opacity: .5; } 100% { opacity: 0; transform: translate(var(--dx), -90vh); } }
+
+/* ---------- verdict badges ---------- */
+.v { display: inline-block; font: 600 11px/1 var(--font-mono); letter-spacing: .12em; padding: 6px 10px; border-radius: 999px; border: 1px solid; white-space: nowrap; }
+.v-block { background: var(--gold); border-color: var(--gold); color: var(--indigo); box-shadow: 0 0 18px -4px var(--gold-glow); }
+.v-hold { border-color: var(--gold); color: var(--gold); }
+.v-clear { background: var(--celadon); border-color: var(--celadon); color: var(--indigo); }
+.v-inc { border-color: var(--line); border-style: dashed; color: var(--celadon); }
+.v-none { border-color: var(--hair); color: var(--text-muted); }
+
+/* ---------- video ---------- */
+.film { padding-top: 40px; }
+.film .sec-head { margin-bottom: 40px; }
+.player { position: relative; aspect-ratio: 16 / 9; border-radius: 18px; overflow: hidden; background: var(--indigo-900);
+  border: 1px solid var(--line); box-shadow: 0 0 0 1px rgba(242,181,58,.08), 0 40px 120px -30px rgba(242,181,58,.35), 0 30px 80px -20px #000; }
+.player::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(242,181,58,.18); }
+.player video, .player iframe, .player .fallback { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.player video { object-fit: cover; background: var(--indigo-900); }
+.player .fallback { display: none; place-items: center; background: #11111b; }
+.player .fallback img { width: auto; height: 100%; max-width: 100%; object-fit: contain; }
+.player.no-video .fallback { display: grid; }
+.player.no-video video, .player.no-video .play { display: none; }
+.play { position: absolute; inset: 0; display: grid; place-items: center; background: radial-gradient(circle at center, rgba(11,19,37,.25), rgba(7,13,26,.7));
+  border: 0; cursor: pointer; transition: opacity .4s; color: var(--celadon); }
+.play .btn { width: 108px; height: 108px; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--gold);
+  background: rgba(7,13,26,.55); backdrop-filter: blur(6px); box-shadow: 0 0 40px -6px var(--gold-glow), inset 0 0 20px -8px var(--gold-glow); transition: transform .3s, box-shadow .3s; }
+.play:hover .btn { transform: scale(1.07); box-shadow: 0 0 70px -4px var(--gold-glow), inset 0 0 26px -8px var(--gold-glow); }
+.play .btn::before { content: ""; position: absolute; width: 108px; height: 108px; border-radius: 50%; border: 1px solid var(--gold); animation: ring 2.6s infinite; }
+.play .cap { position: absolute; bottom: 28px; left: 0; right: 0; text-align: center; }
+.player.playing .play { opacity: 0; pointer-events: none; }
+.film-meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+.chapters { display: flex; flex-wrap: wrap; gap: 8px 28px; }
+
+/* ---------- problem ---------- */
+.split { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 80px; align-items: start; }
+.quote { font: 400 clamp(2rem, 3.6vw, 3.1rem)/1.08 var(--font-display); color: var(--celadon); margin: 0; }
+.quote em { color: var(--gold); font-style: italic; }
+.rule-gold { height: 1px; background: linear-gradient(90deg, var(--gold), transparent); border: 0; margin: 32px 0; box-shadow: 0 0 10px var(--gold-glow); }
+
+/* ---------- figures ---------- */
+.shot { margin: 0; }
+.shot .frame { border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--indigo-900);
+  box-shadow: 0 30px 80px -30px #000; transition: transform .5s cubic-bezier(.2,.7,.2,1), box-shadow .5s; }
+.shot:hover .frame { transform: translateY(-4px); box-shadow: 0 40px 90px -30px #000, 0 0 40px -16px var(--gold-glow); }
+.shot .bar { display: flex; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--hair); }
+.shot .bar i { width: 9px; height: 9px; border-radius: 50%; background: var(--hair); }
+.shot figcaption { margin-top: 14px; font-size: 14px; color: var(--text-muted); line-height: 1.55; }
+
+/* states strip */
+.states { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--hair); border: 1px solid var(--hair); border-radius: 16px; overflow: hidden; margin: 64px 0; }
+.state { background: var(--indigo); padding: 32px 28px; }
+.state .n { font: 400 15px var(--font-display); color: var(--text-muted); margin-bottom: 18px; display: block; }
+.state p { margin: 14px 0 0; font-size: 15px; }
+.state.lit { background: linear-gradient(180deg, rgba(242,181,58,.08), var(--indigo) 70%); }
+
+.two { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 40px; align-items: start; }
+.stack { display: grid; gap: 56px; }
+
+/* ---------- gas plant feature ---------- */
+.feature { background: linear-gradient(180deg, var(--indigo), var(--indigo-900) 40%, var(--indigo)); }
+.bignum { font: 400 clamp(7rem, 16vw, 13rem)/.8 var(--font-display); color: var(--gold); text-shadow: 0 0 60px var(--gold-glow); margin: 0; }
+.bignum small { font-size: .22em; letter-spacing: .1em; color: var(--celadon); text-shadow: none; margin-left: 12px; text-transform: uppercase; }
+
+/* ---------- relate ---------- */
+pre.code { background: var(--indigo-900); border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px; overflow-x: auto;
+  font-size: 13.5px; line-height: 1.65; color: var(--celadon); margin: 0; }
+pre.code .k { color: var(--gold); }
+pre.code .c { color: var(--text-muted); }
+pre.code .s { color: #d9e8e1; font-style: italic; }
+.cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--hair); border: 1px solid var(--hair); border-radius: 16px; overflow: hidden; }
+.card { background: var(--indigo); padding: 32px 30px; transition: background .4s; }
+.card:hover { background: var(--indigo-700); }
+.card .ix { font: 400 italic 28px/1 var(--font-display); color: var(--gold); display: block; margin-bottom: 18px; }
+.card p { font-size: 15px; margin: 0; }
+p code, li code, td code, .card code { background: rgba(169,205,190,.08); border: 1px solid var(--hair); padding: 1px 6px; border-radius: 5px; font-size: .88em; color: var(--celadon); }
+
+/* ---------- verdict table ---------- */
+.vt { width: 100%; border-collapse: collapse; font-size: 15px; }
+.vt th { text-align: left; padding: 0 16px 14px; }
+.vt td { padding: 20px 16px; border-top: 1px solid var(--hair); vertical-align: middle; color: var(--text-body); }
+.vt td:first-child { font: 500 12px var(--font-mono); letter-spacing: .08em; color: var(--celadon); }
+.vt tr { transition: background .3s; }
+.vt tbody tr:hover { background: rgba(169,205,190,.03); }
 .scroll { overflow-x: auto; }
+
+/* ---------- agent ---------- */
+.versus { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.panel { border: 1px solid var(--hair); border-radius: 18px; padding: 36px 32px; background: var(--indigo); }
+.panel.with { border-color: rgba(242,181,58,.45); background: radial-gradient(90% 70% at 80% 0%, rgba(242,181,58,.09), transparent 70%), var(--indigo);
+  box-shadow: 0 0 60px -30px var(--gold-glow); }
+.panel .verdict { font: 400 clamp(2rem, 3.4vw, 2.8rem)/1 var(--font-display); text-transform: uppercase; margin: 20px 0 18px; }
+.panel.without .verdict { color: var(--text-muted); }
+.panel.with .verdict { color: var(--gold); }
+.panel p { font-size: 15px; }
+
+/* ---------- stats ---------- */
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--hair); border: 1px solid var(--hair); border-radius: 16px; overflow: hidden; }
+.stat { background: var(--indigo); padding: 36px 30px 32px; }
+.stat .num { font: 400 clamp(3.4rem, 6vw, 5rem)/.9 var(--font-display); color: var(--celadon); display: block; margin-bottom: 14px; }
+.stat.g .num { color: var(--gold); text-shadow: 0 0 30px var(--gold-glow); }
+.stat p { font-size: 14px; margin: 0; color: var(--text-muted); }
+.fine { font-size: 13px; color: var(--text-muted); margin-top: 24px; }
+
+/* ---------- try it ---------- */
+.term { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--indigo-900); box-shadow: 0 40px 100px -40px rgba(242,181,58,.3); }
+.term .bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--hair); }
+.term .dots { display: flex; gap: 6px; }
+.term .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--hair); }
+.term pre { margin: 0; padding: 22px 24px; overflow-x: auto; font-size: 14px; line-height: 1.85; color: var(--celadon); }
+.term .p { color: var(--gold); user-select: none; }
+.term .c { color: var(--text-muted); }
+.copy { font: 500 10px var(--font-ui); letter-spacing: .22em; text-transform: uppercase; background: none; border: 1px solid var(--line); color: var(--text-muted);
+  border-radius: 999px; padding: 6px 12px; cursor: pointer; transition: all .25s; }
+.copy:hover, .copy.ok { border-color: var(--gold); color: var(--gold); }
+
+/* ---------- caveat + footer ---------- */
+.caveat { border: 1px solid var(--hair); border-left: 2px solid var(--gold); border-radius: 4px 14px 14px 4px; padding: 20px 24px; font-size: 14.5px; }
+.caveat p { margin: 0; }
+.closing { text-align: center; padding: 160px 0 120px;
+  background: radial-gradient(50% 60% at 50% 60%, rgba(242,181,58,.12), transparent 70%), var(--indigo); }
+.closing h2 { font-size: clamp(3rem, 8vw, 7rem); }
+.closing .actions { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 44px; }
+footer { border-top: 1px solid var(--hair); padding: 40px 0 48px; }
+footer .wrap { display: grid; grid-template-columns: 1fr 1.4fr; gap: 40px; }
+footer p { font-size: 13px; color: var(--text-muted); margin: 0 0 8px; }
+footer .links { display: flex; flex-wrap: wrap; gap: 10px 26px; margin-top: 16px; }
+footer .links a { font: 500 10px var(--font-ui); letter-spacing: .24em; text-transform: uppercase; color: var(--text-muted); text-decoration: none; }
+footer .links a:hover { color: var(--gold); }
+
+/* ---------- reveal ---------- */
+.js .rv { opacity: 0; transform: translateY(26px); transition: opacity 1s cubic-bezier(.2,.7,.2,1), transform 1s cubic-bezier(.2,.7,.2,1); }
+.js .rv.in { opacity: 1; transform: none; }
+.js .rv.d1 { transition-delay: .1s; } .js .rv.d2 { transition-delay: .2s; } .js .rv.d3 { transition-delay: .3s; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 980px) {
+  :root { --pad: 28px; }
+  .hero-grid, .split, .two, .versus { grid-template-columns: minmax(0,1fr); }
+  .navlinks { gap: 0; }
+  .hero-grid { gap: 48px; }
+  .plant { max-width: 560px; }
+  .sec-head { grid-template-columns: minmax(0,1fr); gap: 20px; }
+  .navlinks a.nl { display: none; }
+  .states, .stats { grid-template-columns: 1fr; }
+  section { padding: 100px 0; }
+  .split { gap: 40px; }
+  footer .wrap { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  :root { --pad: 16px; }
+  .cards { grid-template-columns: 1fr; }
+  .logo { letter-spacing: .3em; font-size: 12px; }
+  nav.top .cta.sm { padding: 8px 12px; letter-spacing: .16em; }
+  .hero-meta .label { letter-spacing: .14em; }
+  .hero { padding-top: 104px; }
+  .hero-meta { position: static; margin-top: 56px; }
+  .plant-card { position: static; margin-top: 16px; max-width: none; }
+  .play .btn, .play .btn::before { width: 76px; height: 76px; }
+  .play .cap { bottom: 14px; }
+  .panel, .card, .stat, .state { padding: 26px 22px; }
+  .vt td, .vt th { padding-left: 10px; padding-right: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  .embers { display: none; }
+}
 </style>
 </head>
 <body>
-<main>
-<p class="note">Relate by Neo4j Hackathon 2026 entry</p>
-<h1>Blind Flange</h1>
-<p class="lede">Before a work permit is approved, Blind Flange walks the plant's piping graph in Relate to find conflicts with other open jobs, shows the path that proves each one, and refuses to say CLEAR when it cannot know.</p>
-<p class="links"><a href="https://github.com/loksai-codes/blind-flange">Source code</a>
-<a href="report-PTW-2201.html">Sample evidence report</a>
-<a href="https://github.com/loksai-codes/blind-flange/blob/main/docs/agent-session.md">Agent session</a>
-<a href="https://github.com/loksai-codes/blind-flange/blob/main/docs/SPEC.md">Specification</a></p>
-<p class="warn">Decision support only. Not a safety system. Not reviewed by a process safety engineer. Both plants are illustrative.</p>
 
-<h2>The problem</h2>
-<p>On a process plant every maintenance job runs under a permit to work, and the equipment is isolated before anyone opens it. Two permits can each look safe on their own and still conflict, because the equipment they name is joined by piping that neither permit mentions.</p>
-<p>On Piper Alpha in 1988, a condensate pump was restarted while its relief valve was out for maintenance under another permit, with a blind flange over the opening. The two permits named different equipment. That accident is the motivation; this tool does not claim it would have prevented it.</p>
-<p>Matching permits by equipment tag cannot see this. The conflict is a path.</p>
+<nav class="top" id="nav">
+  <a class="logo" href="#top" aria-label="Blind Flange, top of page">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="9.5" fill="none" stroke="#A9CDBE" stroke-opacity=".7"/><circle cx="11" cy="11" r="5.5" fill="#F2B53A" style="filter:drop-shadow(0 0 4px rgba(242,181,58,.6))"/><path d="M11 0v22" stroke="#0B1325" stroke-width="1.6"/></svg>
+    Blind Flange
+  </a>
+  <div class="navlinks">
+    <a class="nl" href="#problem">Problem</a>
+    <a class="nl" href="#graph">How it works</a>
+    <a class="nl" href="#evidence">Evidence</a>
+    <a class="nl" href="#try">Try it</a>
+    <a class="cta sm" href="#film">Watch the demo <span class="arr">→</span></a>
+  </div>
+</nav>
 
-<h2>The answer is a path</h2>
-<figure><img src="media/1-block.png" alt="Terminal output: BLOCK, pressure would reach the temporary blind BF-504 by a four-hop path; tag matching would pass."><figcaption>Starting pump A would put pressure on a temporary blind another permit relies on. The two permits share no tag.</figcaption></figure>
-<p>Close one valve on that path and the same request is <span class="badge b-clear">CLEAR</span>. Lose track of that valve's state and the tool says it cannot decide: <span class="badge b-inc">INCOMPLETE</span>, no verdict, and the unconfirmed valve named.</p>
-<figure><img src="media/2-clear-then-unknown.png" alt="Terminal: after closing RLV-504 the check is CLEAR; after marking it unknown, INCOMPLETE with an UNCONFIRMED finding."><figcaption>"I don't know, and here is why" is an answer too.</figcaption></figure>
+<!-- ============ HERO ============ -->
+<header class="hero" id="top">
+  <div class="embers" id="embers" aria-hidden="true"></div>
+  <div class="wrap hero-grid">
+    <div>
+      <p class="label gold rv">Permit-to-work conflict checks · on Relate</p>
+      <h1 class="display rv d1">
+        <span class="ln">The conflict</span>
+        <span class="ln">is a path</span>
+        <svg class="crack" viewBox="0 0 600 260" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M-6 92 L58 104 L96 86 L150 120 L188 112 L232 146 L270 132 L318 160 L352 150 L398 188 L452 176 L498 206 L548 200 L590 222"/>
+          <path class="thin" d="M232 146 L246 178 L238 214 L252 262"/>
+          <path class="thin" d="M398 188 L416 158 L440 150"/>
+        </svg>
+      </h1>
+      <p class="lede rv d2">Before a work permit is approved, Blind Flange walks the plant's piping graph in Relate to find conflicts with other open jobs, shows the path that proves each one, and refuses to say CLEAR when it cannot know.</p>
+      <div class="actions rv d3">
+        <a class="cta solid" href="#film">Watch the demo <span class="arr">→</span></a>
+        <a class="cta" href="https://github.com/loksai-codes/blind-flange">Source code <span class="arr">↗</span></a>
+      </div>
+    </div>
 
-<h2>A plant nobody can check by eye</h2>
-<p>The second plant is an invented gas processing plant: 151 components, three compression trains, dehydration, export, condensate, flare, drains and utilities. Train C is down. Its relief valve is in the workshop and a temporary blind is fitted. The isolation valve its permit lists is closed, but a small pressurisation bypass around it was left open. Restarting train B reaches that blind in 12 hops.</p>
-<figure><img src="media/3-gas-plant-12-hops.png" alt="Terminal: restart of compression blocked, 12-hop path through BV-231 to BF-230."><figcaption>The route goes around the listed isolation, not through it.</figcaption></figure>
-<figure><img src="media/4-report.png" alt="HTML evidence report: verdict, the path drawn as a strip with barriers holding beside each step."><figcaption><code>blindflange report</code> draws the path, the barriers holding beside each step, the states as assessed, and the whole plant. <a href="report-PTW-2201.html">Open the full report.</a></figcaption></figure>
+    <div class="plant rv d2" aria-label="Diagram: starting pump P-A puts pressure on blind BF-504 by a four-hop path, through RLV-504.">
+      <svg viewBox="0 0 560 500" role="img">
+        <title>Starting pump A reaches the temporary blind BF-504 in four hops</title>
+        <!-- background plant -->
+        <path class="edge" d="M70 140 L190 120 L300 70 L430 90"/>
+        <path class="edge" d="M70 260 L180 250 L280 250"/>
+        <path class="edge dash" d="M180 250 L250 300"/>
+        <path class="edge" d="M300 70 L330 160 L280 250"/>
+        <path class="edge" d="M430 90 L470 190"/>
+        <path class="edge" d="M380 300 L470 190 L500 300 L470 410"/>
+        <path class="edge" d="M330 160 L470 190"/>
+        <path class="edge" d="M60 420 L150 440"/>
+        <!-- the route, faint underlay -->
+        <path class="edge" d="M60 390 L150 340 L250 300 L380 300 L470 190"/>
+        <!-- gold seam -->
+        <path class="seam" id="seam" d="M60 390 L150 340 L250 300 L380 300 L470 190"/>
 
-<h2>How Relate does the reasoning</h2>
-<p>One <code>.rl</code> file holds the plant, the observed valve and blind states, every open permit and a record of every decision. A shift hands the whole picture to the next as one file, with no server.</p>
-<figure><img src="media/7-model.png" alt="Graph model: Permit linked to Component by WORKS_ON, RELIES_ON, ENERGISES, OPERATES; Component CONNECTED_TO Component; Evaluation and Store nodes."></figure>
-<p>The main check is one Cypher statement. A quantified path pattern filters every hop, so the walk stops at each closed valve or installed blind:</p>
-<pre><code>MATCH path = SHORTEST 1 (s)
-  ((a)-[:CONNECTED_TO]-(b)
-    WHERE ( NOT coalesce(a.state, 'unknown') IN ['closed', 'installed', 'removed', 'unknown']
-            AND coalesce(a.observed_at, '') &gt;= $stale_before )
-       OR ( $possible AND (coalesce(a.state, 'unknown') = 'unknown'
-                           OR coalesce(a.observed_at, '') &lt; $stale_before) )
+        <!-- nodes -->
+        <circle class="node dim" cx="70" cy="140" r="7"/><circle class="node dim" cx="190" cy="120" r="4"/>
+        <circle class="node dim" cx="300" cy="70" r="11"/><circle class="node dim" cx="430" cy="90" r="5"/>
+        <circle class="node dim" cx="330" cy="160" r="5"/><circle class="node dim" cx="500" cy="300" r="5"/>
+        <circle class="node dim" cx="470" cy="410" r="7"/><circle class="node dim" cx="150" cy="440" r="4"/>
+        <circle class="node" cx="70" cy="260" r="12"/><circle class="node dim" cx="180" cy="250" r="4"/><circle class="node dim" cx="280" cy="250" r="4"/>
+        <circle class="node dim" cx="60" cy="420" r="5"/>
+        <!-- path nodes -->
+        <circle class="node" cx="60" cy="390" r="13" style="stroke:#F2B53A;stroke-opacity:1"/>
+        <circle class="node" cx="150" cy="340" r="4.5" style="stroke-opacity:.9"/>
+        <g transform="translate(250 300)"><path d="M-10 -8 L10 8 L10 -8 L-10 8 Z" class="node" style="stroke-opacity:.9"/></g>
+        <circle class="node" cx="380" cy="300" r="4.5" style="stroke-opacity:.9"/>
+        <!-- the blind -->
+        <circle class="ring" cx="470" cy="190" r="12"/>
+        <circle class="hit" cx="470" cy="190" r="12"/>
+        <path d="M470 176 L470 204" stroke="#0B1325" stroke-width="2.4" class="hit"/>
+        <circle class="pulse" r="3.5"><animateMotion dur="3.2s" begin="3.6s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#seam"/></animateMotion></circle>
+
+        <!-- tags -->
+        <text class="tag g" x="34" y="364">P-A</text>
+        <text class="tag on" x="118" y="326">L-PD-A</text>
+        <text class="tag on" x="222" y="330">RLV-504</text>
+        <text class="tag on" x="356" y="326">L-RL-504</text>
+        <text class="tag g" x="492" y="186">BF-504</text>
+        <text class="tag" x="492" y="202" style="font-size:8.5px">HELD BY PTW-0504</text>
+        <text class="tag" x="46" y="236">P-B</text>
+        <text class="tag" x="268" y="48">JT-DRUM</text>
+      </svg>
+      <div class="plant-card">
+        <span class="v v-block">BLOCK</span>
+        <p>PTW-0511 starts pump A. Pressure reaches BF-504, a blind PTW-0504 relies on. The two permits share no tag.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero-meta">
+    <div class="wrap">
+      <span class="label">Relate by Neo4j · One .rl file · Every finding carries its path</span>
+      <a class="label scroll-cue" href="#film" style="text-decoration:none"><i></i>Scroll</a>
+    </div>
+  </div>
+</header>
+
+<!-- ============ VIDEO ============ -->
+<!--
+  To show the demo video, do ONE of these:
+   1. YouTube or Vimeo: put the video id in data-youtube (e.g. data-youtube="dQw4w9WgXcQ") or a full
+      embed URL in data-embed (e.g. data-embed="https://player.vimeo.com/video/123456").
+   2. A file: save it as docs/media/demo.mp4 (H.264, 1920x1080). Optional poster: docs/media/demo-poster.png.
+  With neither, the player falls back to the animated terminal recording in media/demo.svg.
+-->
+<section class="film" id="film">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">01 · The demo</span>
+      <h2 class="display">Two minutes, <em>one path</em></h2>
+    </div>
+    <div class="player rv d1" id="player" data-youtube="" data-embed="">
+      <video id="video" preload="metadata" playsinline controls poster="media/demo-poster.png">
+        <source src="media/demo.mp4" type="video/mp4">
+      </video>
+      <button class="play" id="play" type="button" aria-label="Play the demo video">
+        <span class="btn"><svg width="30" height="34" viewBox="0 0 30 34" aria-hidden="true"><path d="M4 2 L28 17 L4 32 Z" fill="#F2B53A"/></svg></span>
+        <span class="cap label">Play · Blind Flange in under two minutes</span>
+      </button>
+      <div class="fallback"><img src="media/demo.svg" alt="Blind Flange in a terminal: restarting train B is BLOCK, with the 12-hop path through the open bypass BV-231; closing BV-231 makes it CLEAR."></div>
+    </div>
+    <div class="film-meta rv d2">
+      <div class="chapters">
+        <span class="label">The block</span><span class="label">Close a valve · Clear</span><span class="label">12 hops on a gas plant</span><span class="label">An agent asks</span>
+      </div>
+      <span class="label gold" id="film-note">Recorded from a fresh clone</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PROBLEM ============ -->
+<section id="problem">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">02 · The problem</span>
+      <h2 class="display">Two safe permits, <em>one hazard</em></h2>
+    </div>
+    <div class="split">
+      <div class="rv">
+        <p class="quote">Two permits can each look safe on their own and still conflict, because the equipment they name is joined by piping <em>neither permit mentions.</em></p>
+        <hr class="rule-gold">
+        <p class="label">Matching permits by equipment tag cannot see this</p>
+      </div>
+      <div class="rv d1">
+        <p>On a process plant every maintenance job runs under a permit to work, and the equipment is isolated before anyone opens it.</p>
+        <p>On Piper Alpha in 1988, a condensate pump was restarted while its relief valve was out for maintenance under another permit, with a blind flange over the opening. The two permits named different equipment.</p>
+        <p>That accident is the motivation. This tool does not claim it would have prevented it.</p>
+        <div class="caveat" style="margin-top:28px"><p><strong style="color:var(--gold);font-weight:600">Decision support only.</strong> Not a safety system. Not reviewed by a process safety engineer. Both plants are illustrative.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ THE ANSWER IS A PATH ============ -->
+<section id="path" style="padding-top:40px">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">03 · The answer</span>
+      <h2 class="display">Block, clear, <em>or I don't know</em></h2>
+    </div>
+    <div class="states rv">
+      <div class="state lit"><span class="n">i.</span><span class="v v-block">BLOCK</span><p>Starting pump A would put pressure on a temporary blind another permit relies on. Four hops. No shared tag.</p></div>
+      <div class="state"><span class="n">ii.</span><span class="v v-clear">CLEAR</span><p>Close one valve on that path, RLV-504, and the same request is clear.</p></div>
+      <div class="state"><span class="n">iii.</span><span class="v v-inc">INCOMPLETE</span><p>Lose track of that valve's state and there is no verdict. The unconfirmed valve is named.</p></div>
+    </div>
+    <div class="two">
+      <figure class="shot rv"><div class="frame"><div class="bar"><i></i><i></i><i></i></div><img src="media/1-block.png" alt="Terminal output: BLOCK, pressure would reach the temporary blind BF-504 by a four-hop path; tag matching would pass." loading="lazy"></div>
+        <figcaption>The two permits share no tag. Tag matching would pass this one.</figcaption></figure>
+      <figure class="shot rv d1"><div class="frame"><div class="bar"><i></i><i></i><i></i></div><img src="media/2-clear-then-unknown.png" alt="Terminal: after closing RLV-504 the check is CLEAR; after marking it unknown, INCOMPLETE with an UNCONFIRMED finding." loading="lazy"></div>
+        <figcaption>"I don't know, and here is why" is an answer too.</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ GAS PLANT ============ -->
+<section class="feature">
+  <div class="wrap">
+    <div class="split" style="align-items:center">
+      <div class="rv">
+        <p class="label gold">04 · A plant nobody can check by eye</p>
+        <p class="bignum">12<small>hops</small></p>
+        <p class="lede" style="margin-top:32px">An invented gas processing plant: 151 components, three compression trains, dehydration, export, condensate, flare, drains and utilities.</p>
+        <p>Train C is down. Its relief valve is in the workshop and a temporary blind is fitted. The isolation valve its permit lists is closed, but a small pressurisation bypass around it was left open. Restarting train B reaches that blind in 12 hops.</p>
+        <p class="label" style="margin-top:28px">The route goes around the listed isolation, not through it</p>
+      </div>
+      <div class="stack">
+        <figure class="shot rv d1"><div class="frame"><div class="bar"><i></i><i></i><i></i></div><img src="media/3-gas-plant-12-hops.png" alt="Terminal: restart of compression blocked, 12-hop path through BV-231 to BF-230." loading="lazy"></div></figure>
+        <figure class="shot rv d2"><div class="frame"><div class="bar"><i></i><i></i><i></i></div><img src="media/4-report.png" alt="HTML evidence report: verdict, the path drawn as a strip with barriers holding beside each step." loading="lazy"></div>
+          <figcaption><code>blindflange report</code> draws the path, the barriers holding beside each step, and the whole plant. <a href="report-PTW-2201.html">Open the full report →</a></figcaption></figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RELATE ============ -->
+<section id="graph">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">05 · How Relate does the reasoning</span>
+      <h2 class="display">One file. <em>One query.</em></h2>
+    </div>
+    <div class="two" style="margin-bottom:64px">
+      <div class="rv">
+        <p class="lede">One <code>.rl</code> file holds the plant, the observed valve and blind states, every open permit and a record of every decision. A shift hands the whole picture to the next as one file, with no server.</p>
+        <p>The main check is one Cypher statement. A quantified path pattern filters every hop, so the walk stops at each closed valve or installed blind.</p>
+        <figure class="shot" style="margin-top:28px"><div class="frame"><img src="media/7-model.png" alt="Graph model: Permit linked to Component by WORKS_ON, RELIES_ON, ENERGISES, OPERATES; Component CONNECTED_TO Component; Evaluation and Store nodes." loading="lazy"></div></figure>
+      </div>
+      <pre class="code rv d1"><code><span class="k">MATCH</span> path = <span class="k">SHORTEST</span> 1 (s)
+  ((a)-[:<span class="k">CONNECTED_TO</span>]-(b)
+    <span class="k">WHERE</span> ( <span class="k">NOT</span> coalesce(a.state, <span class="s">'unknown'</span>)
+              <span class="k">IN</span> [<span class="s">'closed'</span>, <span class="s">'installed'</span>,
+                  <span class="s">'removed'</span>, <span class="s">'unknown'</span>]
+            <span class="k">AND</span> coalesce(a.observed_at, <span class="s">''</span>)
+                  &gt;= $stale_before )
+       <span class="k">OR</span> ( $possible <span class="k">AND</span>
+            (coalesce(a.state, <span class="s">'unknown'</span>) = <span class="s">'unknown'</span>
+             <span class="k">OR</span> coalesce(a.observed_at, <span class="s">''</span>)
+                  &lt; $stale_before) )
   ){0,100} (x:Component)
-OPTIONAL MATCH (q:Permit)-[r:WORKS_ON|RELIES_ON]-&gt;(x)</code></pre>
-<div class="grid">
-<div class="card"><h3>Proven or possible</h3><p>The same statement runs twice. Passing only states that are known and current gives a PROVEN finding. Also passing unconfirmed ones gives a POSSIBLE finding, which withholds the verdict instead of guessing.</p></div>
-<div class="card"><h3>Bounded, and honest about it</h3><p>Every walk has a hop limit. A second query looks one hop further. If the limit cut anything off, the result is INCOMPLETE, never CLEAR.</p></div>
-<div class="card"><h3>Dry runs in a transaction</h3><p>A request is written into the graph, its changes applied, the graph queried before and after, and everything rolled back. Approval is the same steps with a commit.</p></div>
-<div class="card"><h3>Every decision kept</h3><p>Each assessment stores its request, result and a snapshot of every input in the same file. <code>blindflange replay</code> re-runs it. A stale revision is refused.</p></div>
-</div>
+<span class="k">OPTIONAL MATCH</span> (q:Permit)-[r:<span class="k">WORKS_ON</span>|<span class="k">RELIES_ON</span>]-&gt;(x)
 
-<h2>Two fields, never one guess</h2>
-<div class="scroll"><table>
-<tr><th>assessment_status</th><th>conflict_verdict</th><th>Meaning</th></tr>
-<tr><td>COMPLETE</td><td><span class="badge b-block">BLOCK</span></td><td>A proven conflict this request introduces, with its path.</td></tr>
-<tr><td>COMPLETE</td><td><span class="badge b-hold">HOLD</span></td><td>Review needed: a shared isolation, or a hazard that already exists and is not removed.</td></tr>
-<tr><td>COMPLETE</td><td><span class="badge b-clear">CLEAR</span></td><td>No conflict found, and nothing needed was unknown.</td></tr>
-<tr><td>INCOMPLETE</td><td>none</td><td>A state that matters is unknown or stale, or the search hit its bound.</td></tr>
-<tr><td>ERROR</td><td>none</td><td>Unusable input: unknown tag, ambiguous change, or stale revision. Recorded too.</td></tr>
-</table></div>
+<span class="c">// closed and installed are barriers.
+// unknown or stale is never a barrier,
+// and only passable in the POSSIBLE pass.</span></code></pre>
+    </div>
+    <div class="cards rv">
+      <div class="card"><span class="ix">i.</span><h3>Proven or possible</h3><p>The same statement runs twice. Passing only states that are known and current gives a PROVEN finding. Also passing unconfirmed ones gives a POSSIBLE finding, which withholds the verdict instead of guessing.</p></div>
+      <div class="card"><span class="ix">ii.</span><h3>Bounded, and honest about it</h3><p>Every walk has a hop limit. A second query looks one hop further. If the limit cut anything off, the result is INCOMPLETE, never CLEAR.</p></div>
+      <div class="card"><span class="ix">iii.</span><h3>Dry runs in a transaction</h3><p>A request is written into the graph, its changes applied, the graph queried before and after, and everything rolled back. Approval is the same steps with a commit.</p></div>
+      <div class="card"><span class="ix">iv.</span><h3>Every decision kept</h3><p>Each assessment stores its request, result and a snapshot of every input in the same file. <code>blindflange replay</code> re-runs it. A stale revision is refused.</p></div>
+    </div>
+  </div>
+</section>
 
-<h2>An agent can ask, but not decide</h2>
-<p><code>blindflange mcp</code> serves nine tools over the Model Context Protocol, on the Python standard library: two that give a verdict, <code>list_requests</code> so an agent checks a job as written rather than as it reads the question, and read-only ones such as <code>trace_path</code> and <code>explain_finding</code> that let an agent explore the graph. There is no tool that approves a permit or changes the plant. We asked Claude Code the same question twice: can train B be restarted?</p>
-<div class="grid">
-<div class="card"><h3>Without the tool</h3><p>It read the permit list, found no direct conflict, and hedged: "verify the P&amp;IDs". It could not name the bypass, because the bypass is not in any permit.</p></div>
-<div class="card"><h3>With the tool</h3><p>It called <code>assess_change</code> (BLOCK, with the 12-hop path), then <code>explain_finding</code> to check which isolation the route gets around, and answered DO NOT APPROVE: the route passes the open bypass BV-231 beside the closed XV-231. <a href="https://github.com/loksai-codes/blind-flange/blob/main/docs/agent-session.md">Full transcript.</a></p></div>
-</div>
-<p>Asked loosely, with no permit named, an agent once checked only the change it guessed (start the compressor) and got CLEAR. The written permit makes five changes and is BLOCK. Now the agent lists the written requests first and assesses the real one. <a href="https://github.com/loksai-codes/blind-flange/blob/main/docs/agent-session-2.md">Second session.</a></p>
+<!-- ============ VERDICTS ============ -->
+<section style="padding-top:40px">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">06 · Two fields</span>
+      <h2 class="display">Never <em>one guess</em></h2>
+    </div>
+    <div class="scroll rv">
+      <table class="vt">
+        <thead><tr><th class="label">assessment_status</th><th class="label">conflict_verdict</th><th class="label">Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>COMPLETE</td><td><span class="v v-block">BLOCK</span></td><td>A proven conflict this request introduces, with its path.</td></tr>
+          <tr><td>COMPLETE</td><td><span class="v v-hold">HOLD</span></td><td>Review needed: a shared isolation, or a hazard that already exists and is not removed.</td></tr>
+          <tr><td>COMPLETE</td><td><span class="v v-clear">CLEAR</span></td><td>No conflict found, and nothing needed was unknown.</td></tr>
+          <tr><td>INCOMPLETE</td><td><span class="v v-none">none</span></td><td>A state that matters is unknown or stale, or the search hit its bound.</td></tr>
+          <tr><td>ERROR</td><td><span class="v v-none">none</span></td><td>Unusable input: unknown tag, ambiguous change, or stale revision. Recorded too.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
 
-<h2>Evidence</h2>
-<figure><img src="media/5-eval.png" alt="Eval table of the cases with expected and actual results, tag matching and oracle agreement."></figure>
-<ul>
-<li><!--stat:eval_cases-->35<!--/stat--> author-written cases across both plants, each written before it was run: <!--stat:eval_matched-->35<!--/stat--> give the expected verdict, status and finding codes. <!--stat:eval_no_verdict-->8<!--/stat--> of them expect "cannot say" or an error.</li>
-<li>Tag matching stops <!--stat:tag_matching_stopped-->8 of 15<!--/stat--> risky permit requests.</li>
-<li>An independent breadth-first walk, written from the specification rather than the Cypher, agrees with the graph on every hazard set: in <!--stat:oracle_agreed-->35<!--/stat--> cases and on <!--stat:random_plants-->120<!--/stat--> random plants.</li>
-<li><!--stat:replay_same-->35<!--/stat--> recorded evaluations replay to the same result. <!--stat:tests_passed-->286<!--/stat--> automated tests pass, and <!--stat:mutations_caught_text-->13 of 13<!--/stat--> deliberate mutations of the checks are caught. CI installs and runs everything on Linux, macOS and Windows.</li>
-</ul>
-<p class="note">These cases show what the checks do. They are not evidence of field performance.</p>
+<!-- ============ AGENT ============ -->
+<section id="agent">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">07 · An agent can ask</span>
+      <h2 class="display">But not <em>decide</em></h2>
+    </div>
+    <p class="lede rv" style="margin-bottom:48px"><code>blindflange mcp</code> serves nine tools over the Model Context Protocol, on the Python standard library: two that give a verdict, <code>list_requests</code> so an agent checks a job as written, and read-only ones such as <code>trace_path</code> and <code>explain_finding</code>. There is no tool that approves a permit or changes the plant. We asked Claude Code the same question twice: can train B be restarted?</p>
+    <div class="versus">
+      <div class="panel without rv">
+        <span class="label">Without the tool</span>
+        <p class="verdict">"Verify the P&amp;IDs"</p>
+        <p>It read the permit list, found no direct conflict, and hedged. It could not name the bypass, because the bypass is not in any permit.</p>
+      </div>
+      <div class="panel with rv d1">
+        <span class="label gold">With the tool</span>
+        <p class="verdict">Do not approve</p>
+        <p>It called <code>assess_change</code> (BLOCK, with the 12-hop path), then <code>explain_finding</code> to check which isolation the route gets around: the open bypass BV-231 beside the closed XV-231. <a href="https://github.com/loksai-codes/blind-flange/blob/main/docs/agent-session.md">Full transcript →</a></p>
+      </div>
+    </div>
+    <p class="rv" style="margin-top:32px;max-width:820px">Asked loosely, with no permit named, an agent once checked only the change it guessed (start the compressor) and got CLEAR. The written permit makes five changes and is BLOCK. Now the agent lists the written requests first and assesses the real one. <a href="https://github.com/loksai-codes/blind-flange/blob/main/docs/agent-session-2.md">Second session →</a></p>
+  </div>
+</section>
 
-<h2>Try it</h2>
-<pre><code>git clone https://github.com/loksai-codes/blind-flange.git &amp;&amp; cd blind-flange
-python -m venv .venv
-source .venv/bin/activate                # Windows: .venv\Scripts\activate
-pip install -e .
-cp stores/condensate_unit.rl work.rl     # Windows: copy stores\condensate_unit.rl work.rl
-python -m blindflange check data/permits/PTW-0511.yaml --store work.rl</code></pre>
-<p class="note">Every assessment appends an Evaluation record, so it runs on a copy and the committed store stays as it is.</p>
+<!-- ============ EVIDENCE ============ -->
+<section id="evidence" style="padding-top:40px">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">08 · Evidence</span>
+      <h2 class="display">Checked <em>against itself</em></h2>
+    </div>
+    <div class="stats rv">
+      <div class="stat g"><span class="num"><!--stat:eval_matched-->35<!--/stat--></span><p>of <!--stat:eval_cases-->35<!--/stat--> author-written cases across both plants give the expected verdict, status and finding codes. Each was written before it was run. <!--stat:eval_no_verdict-->8<!--/stat--> expect "cannot say" or an error.</p></div>
+      <div class="stat"><span class="num"><!--stat:tag_matching_stopped-->8 of 15<!--/stat--></span><p>risky permit requests are stopped by tag matching alone.</p></div>
+      <div class="stat"><span class="num"><!--stat:random_plants-->120<!--/stat--></span><p>random plants, plus <!--stat:oracle_agreed-->35<!--/stat--> cases, on which an independent breadth-first walk written from the specification agrees with the graph on every hazard set.</p></div>
+      <div class="stat"><span class="num"><!--stat:replay_same-->35<!--/stat--></span><p>recorded evaluations replay to the same result.</p></div>
+      <div class="stat"><span class="num"><!--stat:tests_passed-->286<!--/stat--></span><p>automated tests pass. CI installs and runs everything on Linux, macOS and Windows.</p></div>
+      <div class="stat g"><span class="num"><!--stat:mutations_caught_text-->13 of 13<!--/stat--></span><p>deliberate mutations of the checks are caught.</p></div>
+    </div>
+    <figure class="shot rv" style="margin-top:56px"><div class="frame"><img src="media/5-eval.png" alt="Eval table of the cases with expected and actual results, tag matching and oracle agreement." loading="lazy"></div></figure>
+    <p class="fine">These cases show what the checks do. They are not evidence of field performance.</p>
+  </div>
+</section>
 
-<h2>What it is not</h2>
-<p>Pressure is modelled as reachability only: no flow direction, pressure levels or fluids. Only the final state is checked; multi-step procedures are not modelled. Electrical isolation is out of scope. Commercial control-of-work products such as Sphera, Enablon and IntelliPERMIT already manage permits and isolations together. Blind Flange does not replace them. It is a small, open, single-file tool whose every finding can be inspected as a graph path and replayed from its record.</p>
-<p class="note">Built with Relate by Neo4j (relate-db 1.0.1), Python and PyYAML. Claude (Anthropic) was used through Claude Code for research, design, code, tests and documentation, under the author's direction. No language model is used in any decision. MIT licence.</p>
-</main>
+<!-- ============ TRY IT ============ -->
+<section id="try">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">09 · Try it</span>
+      <h2 class="display">From a fresh clone</h2>
+    </div>
+    <div class="term rv">
+      <div class="bar"><span class="dots"><i></i><i></i><i></i></span><button class="copy" id="copy" type="button">Copy</button></div>
+<pre id="cmds"><span class="p">$ </span>git clone https://github.com/loksai-codes/blind-flange.git &amp;&amp; cd blind-flange
+<span class="p">$ </span>python -m venv .venv
+<span class="p">$ </span>source .venv/bin/activate                <span class="c"># Windows: .venv\Scripts\activate</span>
+<span class="p">$ </span>pip install -e .
+<span class="p">$ </span>cp stores/condensate_unit.rl work.rl     <span class="c"># Windows: copy stores\condensate_unit.rl work.rl</span>
+<span class="p">$ </span>python -m blindflange check data/permits/PTW-0511.yaml --store work.rl</pre>
+    </div>
+    <p class="fine">Every assessment appends an Evaluation record, so it runs on a copy and the committed store stays as it is.</p>
+
+    <div class="two" style="margin-top:96px">
+      <div class="rv">
+        <p class="label" style="margin-bottom:18px">What it is not</p>
+        <p>Pressure is modelled as reachability only: no flow direction, pressure levels or fluids. Only the final state is checked; multi-step procedures are not modelled. Electrical isolation is out of scope.</p>
+      </div>
+      <div class="rv d1">
+        <p class="label" style="margin-bottom:18px">&nbsp;</p>
+        <p>Commercial control-of-work products such as Sphera, Enablon and IntelliPERMIT already manage permits and isolations together. Blind Flange does not replace them. It is a small, open, single-file tool whose every finding can be inspected as a graph path and replayed from its record.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CLOSING ============ -->
+<section class="closing">
+  <div class="wrap">
+    <p class="label gold rv">Relate by Neo4j Hackathon 2026</p>
+    <h2 class="display rv d1" style="margin-top:24px">Show me <em>the path</em></h2>
+    <div class="actions rv d2">
+      <a class="cta solid" href="https://github.com/loksai-codes/blind-flange">Source code <span class="arr">↗</span></a>
+      <a class="cta" href="report-PTW-2201.html">Sample evidence report <span class="arr">→</span></a>
+      <a class="cta" href="https://github.com/loksai-codes/blind-flange/blob/main/docs/SPEC.md">Specification <span class="arr">→</span></a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="logo" href="#top">Blind Flange</a>
+      <div class="links">
+        <a href="https://github.com/loksai-codes/blind-flange">Source</a>
+        <a href="report-PTW-2201.html">Report</a>
+        <a href="https://github.com/loksai-codes/blind-flange/blob/main/docs/agent-session.md">Agent session</a>
+        <a href="https://github.com/loksai-codes/blind-flange/blob/main/docs/SPEC.md">Spec</a>
+      </div>
+    </div>
+    <div>
+      <p>Decision support only. Not a safety system. Not reviewed by a process safety engineer. Both plants are illustrative.</p>
+      <p>Built with Relate by Neo4j (relate-db 1.0.1), Python and PyYAML. Claude (Anthropic) was used through Claude Code for research, design, code, tests and documentation, under the author's direction. No language model is used in any decision. MIT licence.</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  root.classList.add('js');
+
+  // nav background on scroll
+  var nav = document.getElementById('nav');
+  function onScroll() { nav.classList.toggle('scrolled', window.scrollY > 40); }
+  window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
+
+  // reveal on scroll
+  var items = document.querySelectorAll('.rv');
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    items.forEach(function (el) { io.observe(el); });
+  } else { items.forEach(function (el) { el.classList.add('in'); }); }
+
+  // embers
+  var em = document.getElementById('embers');
+  if (em && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    for (var i = 0; i < 26; i++) {
+      var s = document.createElement('span');
+      var x = 35 + Math.random() * 62;
+      s.style.left = x + '%';
+      s.style.setProperty('--dx', (Math.random() * 120 - 60) + 'px');
+      s.style.animationDuration = (9 + Math.random() * 10) + 's';
+      s.style.animationDelay = (-Math.random() * 18) + 's';
+      var z = (1 + Math.random() * 2.4).toFixed(1); s.style.width = s.style.height = z + 'px';
+      em.appendChild(s);
+    }
+  }
+
+  // video: YouTube/Vimeo embed, else media/demo.mp4, else the terminal SVG
+  var player = document.getElementById('player');
+  var video = document.getElementById('video');
+  var play = document.getElementById('play');
+  var yt = player.getAttribute('data-youtube').trim();
+  var embed = player.getAttribute('data-embed').trim();
+  function mountIframe(src) {
+    var f = document.createElement('iframe');
+    f.src = src; f.title = 'Blind Flange demo video'; f.loading = 'lazy';
+    f.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen';
+    f.allowFullscreen = true;
+    video.remove(); play.remove(); player.appendChild(f);
+  }
+  if (yt) mountIframe('https://www.youtube-nocookie.com/embed/' + encodeURIComponent(yt) + '?rel=0&modestbranding=1');
+  else if (embed) mountIframe(embed);
+  else {
+    var fail = function () {
+      player.classList.add('no-video');
+      document.getElementById('film-note').textContent = 'Terminal recording · full video coming soon';
+    };
+    var src = video.querySelector('source');
+    src.addEventListener('error', fail);
+    video.addEventListener('error', fail);
+    if (video.networkState === 3) fail();
+    play.addEventListener('click', function () { video.play(); });
+    video.addEventListener('play', function () { player.classList.add('playing'); });
+    video.addEventListener('pause', function () { if (video.currentTime === 0 || video.ended) player.classList.remove('playing'); });
+    video.addEventListener('ended', function () { player.classList.remove('playing'); });
+  }
+
+  // copy commands
+  var btn = document.getElementById('copy');
+  btn.addEventListener('click', function () {
+    var text = document.getElementById('cmds').innerText.split('\n').map(function (l) { return l.replace(/^\$ /, '').replace(/\s+#.*$/, ''); }).join('\n');
+    (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(function () {
+      btn.textContent = 'Copied'; btn.classList.add('ok');
+      setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('ok'); }, 1800);
+    }).catch(function () {});
+  });
+})();
+</script>
 </body>
 </html>
