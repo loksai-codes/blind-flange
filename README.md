@@ -1,6 +1,20 @@
+<p align="center"><a href="https://loksai-codes.github.io/blind-flange/"><img src="docs/media/banner.svg" width="100%" alt="Blind Flange. Starting pump A sends pressure four hops to the blind flange BF-504 that another permit relies on: BLOCK. With valve RLV-504 closed, the walk stops at the valve: CLEAR."></a></p>
+
 # Blind Flange
 
 Before a work permit is approved, Blind Flange walks the plant's piping graph in Relate to find conflicts with other open jobs, shows the path that proves each one, and refuses to say CLEAR when it cannot know.
+
+<p align="center">
+  <a href="https://github.com/loksai-codes/blind-flange/actions/workflows/ci.yml"><img alt="CI on Linux, macOS and Windows" src="https://github.com/loksai-codes/blind-flange/actions/workflows/ci.yml/badge.svg"></a>
+  <img alt="Relate by Neo4j, single file" src="https://img.shields.io/badge/Relate%20by%20Neo4j-single%20file%20.rl-1B3350?style=flat-square">
+  <img alt="Python 3.10 or later" src="https://img.shields.io/badge/python-3.10%2B-1B3350?style=flat-square&logo=python&logoColor=F0E8D8">
+  <img alt="Tests passing" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Floksai-codes%2Fblind-flange%2Fmain%2Fdocs%2Fstats.json&query=%24.tests_passed&label=tests%20passing&color=F03A2A&style=flat-square">
+  <img alt="Mutations caught" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Floksai-codes%2Fblind-flange%2Fmain%2Fdocs%2Fstats.json&query=%24.mutations_caught_text&label=mutations%20caught&color=F03A2A&style=flat-square">
+  <img alt="MCP server over stdio" src="https://img.shields.io/badge/MCP-stdio%20server-4A5D74?style=flat-square">
+  <img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-7A8696?style=flat-square">
+</p>
+
+<p align="center"><b><a href="https://loksai-codes.github.io/blind-flange/">Project page and one-minute demo</a></b></p>
 
 Decision support only. This is not a safety system and has not been reviewed by a process safety engineer.
 
@@ -90,6 +104,32 @@ BLOCK      PTW-2201  Restart compression on train B
 (:Evaluation)-[:ASSESSED]->(:Snapshot)          the inputs it read, stored once per plant state
 ```
 
+The headline example as it sits in the graph (simplified: PTW-0511 also opens SV-A). The red edges are the 4-hop path that proves the BLOCK:
+
+```mermaid
+flowchart LR
+  REQ(["PTW-0511<br/>start pump A<br/><i>requested</i>"]):::req
+  OTHER(["PTW-0504<br/>PSV-504 recertification<br/><i>active</i>"]):::permit
+  PA(("P-A<br/>pump")):::source
+  L1["L-PD-A<br/>line"]:::pass
+  V["RLV-504<br/>valve: open"]:::pass
+  L2["L-RL-504<br/>line"]:::pass
+  BF["BF-504<br/>blind: temporary"]:::hit
+  PSV["PSV-504<br/>removed"]:::work
+  REQ -- ENERGISES --> PA
+  PA --- L1 --- V --- L2 --- BF --- PSV
+  OTHER -- RELIES_ON --> BF
+  OTHER -- WORKS_ON --> PSV
+  classDef req fill:#F0E8D8,stroke:#1B3350,stroke-width:2px,color:#1B3350
+  classDef permit fill:#F0E8D8,stroke:#7A8696,stroke-width:2px,color:#1B3350
+  classDef source fill:#F03A2A,stroke:#B8281B,stroke-width:2px,color:#FFFFFF
+  classDef pass fill:#1B3350,stroke:#1B3350,color:#F0E8D8
+  classDef hit fill:#B8281B,stroke:#F03A2A,stroke-width:3px,color:#FFFFFF
+  classDef work fill:#4A5D74,stroke:#7A8696,stroke-dasharray:4 3,color:#F0E8D8
+  linkStyle 1,2,3,4 stroke:#F03A2A,stroke-width:4px
+  linkStyle 5 stroke:#7A8696,stroke-dasharray:4 3
+```
+
 **The graph does the reasoning.** The main check is one Cypher statement, [`queries/exposures.cypher`](queries/exposures.cypher). It walks from every live pressure source with a quantified path pattern that filters every hop, stops at closed valves and installed blinds, and joins the end of each path to the permits working there:
 
 ```cypher
@@ -108,6 +148,17 @@ The same statement runs twice. With `$possible = false` the walk only passes com
 **A search that stops early never says CLEAR.** Relate only accepts a literal path bound, and refuses explicit bounds above 500 hops. Every walk is bounded, and [`queries/bound.cypher`](queries/bound.cypher) walks one hop further to count components the bounded walk could have missed. If there are any, the result is INCOMPLETE.
 
 **Transactions as dry runs.** A request is assessed by writing it into the graph inside a transaction, applying its state changes, querying, and rolling back. Approval is the same steps with a commit, so what was checked is exactly what is stored. The walk runs before and after the change, so hazards the request introduces are separated from hazards that already exist. An existing hazard gives HOLD, never CLEAR.
+
+```mermaid
+flowchart LR
+  A["Write the request<br/>as <i>requested</i>"]:::step --> B["Walk before<br/>its changes"]:::step --> C["Apply its<br/>state changes"]:::step --> D["Walk after"]:::step --> E{"check or<br/>approve?"}:::q
+  E -- check --> F["Roll back<br/>graph unchanged"]:::rb
+  E -- "approve, if CLEAR or HOLD" --> G["Commit<br/>permit stored"]:::cm
+  classDef step fill:#1B3350,stroke:#1B3350,color:#F0E8D8
+  classDef q fill:#F0E8D8,stroke:#1B3350,stroke-width:2px,color:#1B3350
+  classDef rb fill:#4A5D74,stroke:#7A8696,color:#F0E8D8
+  classDef cm fill:#F03A2A,stroke:#B8281B,color:#FFFFFF
+```
 
 **Every decision is kept in the same file.** Each assessment appends an `Evaluation` node with the request, the result and the rules version, linked by `ASSESSED` to a `Snapshot` of every input. A snapshot is stored once per distinct plant state, and its id is the hash of its content, so many evaluations of the same shift share one snapshot and an altered record is refused. `python -m blindflange replay EVAL-1` rebuilds that snapshot in memory and re-runs the check. Writes check the `Store` revision, so an approval prepared against an older picture of the plant is refused.
 
@@ -151,6 +202,14 @@ The last command prints the BLOCK result shown at the top of this page. Every as
 | `python -m blindflange build <scenario.yaml> -o <file>` | Rebuild a store from YAML. |
 
 Every assessment returns two fields. `assessment_status` is COMPLETE, INCOMPLETE or ERROR. `conflict_verdict` is BLOCK, HOLD, CLEAR, or none when it cannot say. Exit codes: 0 CLEAR or HOLD, 1 error, 2 BLOCK or refused, 3 incomplete with no verdict.
+
+<p>
+  <img alt="BLOCK, exit 2" src="https://img.shields.io/badge/BLOCK-exit%202-F03A2A?style=for-the-badge">
+  <img alt="HOLD, exit 0" src="https://img.shields.io/badge/HOLD-exit%200-D98E04?style=for-the-badge">
+  <img alt="CLEAR, exit 0" src="https://img.shields.io/badge/CLEAR-exit%200-2E7D4F?style=for-the-badge">
+  <img alt="INCOMPLETE, no verdict, exit 3" src="https://img.shields.io/badge/INCOMPLETE-no%20verdict%2C%20exit%203-4A5D74?style=for-the-badge">
+  <img alt="ERROR, exit 1" src="https://img.shields.io/badge/ERROR-exit%201-7A8696?style=for-the-badge">
+</p>
 
 **For an agent.** `python -m blindflange mcp --store gas.work.rl --permits data/permits` serves nine tools over the Model Context Protocol, on the standard library only. Two give a verdict: `assess_change` and `what_if`. Both take `permit_id`, which loads a written request and assesses it exactly as written. `list_requests` lists the written requests for this plant, so an agent asked about "train B" assesses the real permit rather than the changes it guesses. Six more are read-only and let an agent explore the graph instead of only receiving a verdict: `trace_path` (the proven, possible and physical route between two components, with the barriers on it), `explain_finding` (a recorded finding step by step, with the barriers beside each step), `reach`, `handover`, `find_tags` and `get_evaluation`. The verdict comes from the same evaluator as the CLI. There is no tool to approve a permit or change plant state. For Claude Code:
 

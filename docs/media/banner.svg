@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 420" width="1200" height="420" role="img" aria-label="Blind Flange. Starting pump A sends pressure four hops, P-A to L-PD-A to RLV-504 to L-RL-504, to the blind flange BF-504 that permit PTW-0504 relies on: BLOCK. With RLV-504 closed the walk stops at the valve: CLEAR.">
+<title>Blind Flange</title>
+<defs>
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M40 0H0V40" fill="none" stroke="#24405F" stroke-width="1"/>
+  </pattern>
+  <filter id="glow" x="-200%" y="-200%" width="500%" height="500%">
+    <feGaussianBlur stdDeviation="5" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="glowLine" filterUnits="userSpaceOnUse" x="0" y="280" width="1200" height="80">
+    <feGaussianBlur stdDeviation="5" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+</defs>
+<style>
+text{font-family:'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif}
+.mono{font-family:'Cascadia Mono','JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace}
+.ovA{stroke-dasharray:100 100;stroke-dashoffset:100;opacity:0;animation:ovA 12s linear infinite}
+@keyframes ovA{0%,4%{stroke-dashoffset:100;opacity:1}36%,52%{stroke-dashoffset:0;opacity:1}56%,100%{stroke-dashoffset:0;opacity:0}}
+.hdA{opacity:0;animation:hdA 12s linear infinite}
+@keyframes hdA{0%,4%{transform:translateX(168px);opacity:1}36%{transform:translateX(984px);opacity:1}40%,100%{transform:translateX(984px);opacity:0}}
+.ovB{stroke-dasharray:100 100;stroke-dashoffset:100;opacity:0;animation:ovB 12s linear infinite}
+@keyframes ovB{0%,62%{stroke-dashoffset:100;opacity:0}63%{stroke-dashoffset:100;opacity:1}75%,95%{stroke-dashoffset:0;opacity:1}99%,100%{stroke-dashoffset:0;opacity:0}}
+.hdB{opacity:0;animation:hdB 12s linear infinite}
+@keyframes hdB{0%,62%{transform:translateX(168px);opacity:0}63%{transform:translateX(168px);opacity:1}75%,90%{transform:translateX(526px);opacity:1}95%,100%{transform:translateX(526px);opacity:0}}
+.shut{opacity:0;animation:shut 12s ease-in-out infinite}
+@keyframes shut{0%,57%{opacity:0}61%,95%{opacity:1}99%,100%{opacity:0}}
+.hit{opacity:0;animation:hit 12s ease-out infinite}
+@keyframes hit{0%,35%{opacity:0}37%{opacity:1}52%{opacity:.7}56%,100%{opacity:0}}
+.stB{opacity:0;animation:stB 12s ease-out infinite}
+@keyframes stB{0%,36%{opacity:0;transform:scale(1.6)}39%{opacity:1;transform:scale(1)}52%{opacity:1;transform:scale(1)}56%,100%{opacity:0;transform:scale(1)}}
+.stC{opacity:0;animation:stC 12s ease-out infinite}
+@keyframes stC{0%,76%{opacity:0;transform:scale(1.6)}79%{opacity:1;transform:scale(1)}95%{opacity:1;transform:scale(1)}99%,100%{opacity:0;transform:scale(1)}}
+.cap1{opacity:0;animation:cap1 12s infinite}
+@keyframes cap1{0%,3%{opacity:0}6%,52%{opacity:1}56%,100%{opacity:0}}
+.cap2{opacity:0;animation:cap2 12s infinite}
+@keyframes cap2{0%,57%{opacity:0}60%,95%{opacity:1}99%,100%{opacity:0}}
+.ring{transform-box:fill-box;transform-origin:center;animation:ring 1.5s ease-out infinite}
+@keyframes ring{0%{transform:scale(1);opacity:.9}100%{transform:scale(1.7);opacity:0}}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important}
+  .ovA,.cap1,.stB,.hit{opacity:1;stroke-dashoffset:0}
+  .ring{opacity:0}
+}
+</style>
+
+<rect width="1200" height="420" rx="18" fill="#1B3350"/>
+<rect width="1200" height="420" rx="18" fill="url(#grid)" opacity=".55"/>
+
+<!-- title -->
+<text x="64" y="104" font-size="62" font-weight="700" fill="#F0E8D8" letter-spacing="-1">Blind Flange</text>
+<rect x="66" y="124" width="76" height="6" rx="3" fill="#F03A2A"/>
+<text x="64" y="172" font-size="23" fill="#B9BFC6">Permit-to-work conflicts, found as paths</text>
+<text x="64" y="202" font-size="23" fill="#B9BFC6">through a plant's piping graph in <tspan fill="#F0E8D8" font-weight="600">Relate</tspan>.</text>
+
+<!-- stamps -->
+<g transform="translate(1000 168) rotate(-6)">
+  <g class="stB">
+    <rect x="-100" y="-38" width="200" height="76" rx="10" fill="#F03A2A" fill-opacity=".14" stroke="#F03A2A" stroke-width="4"/>
+    <text y="14" text-anchor="middle" font-size="42" font-weight="800" fill="#FF6A5C" letter-spacing="5">BLOCK</text>
+  </g>
+  <g class="stC">
+    <rect x="-100" y="-38" width="200" height="76" rx="10" fill="#F0E8D8" fill-opacity=".08" stroke="#F0E8D8" stroke-width="4"/>
+    <text y="14" text-anchor="middle" font-size="42" font-weight="800" fill="#F0E8D8" letter-spacing="5">CLEAR</text>
+  </g>
+</g>
+
+<!-- piping: base -->
+<path d="M168 320H990" stroke="#4A5D74" stroke-width="10" stroke-linecap="round" fill="none"/>
+<path d="M1006 320H1110" stroke="#7A8696" stroke-width="4" stroke-dasharray="8 8" fill="none"/>
+
+<!-- pressure overlays -->
+<path class="ovA" d="M168 320H990" pathLength="100" stroke="#FF6A5C" stroke-width="10" stroke-linecap="round" fill="none" filter="url(#glowLine)"/>
+<path class="ovB" d="M168 320H532" pathLength="100" stroke="#FF6A5C" stroke-width="10" stroke-linecap="round" fill="none" filter="url(#glowLine)"/>
+<circle class="hdA" cx="0" cy="320" r="9" fill="#FFD9D4" filter="url(#glow)"/>
+<circle class="hdB" cx="0" cy="320" r="9" fill="#FFD9D4" filter="url(#glow)"/>
+
+<!-- P-A pump -->
+<circle class="ring" cx="140" cy="320" r="30" fill="none" stroke="#FF6A5C" stroke-width="3"/>
+<circle cx="140" cy="320" r="30" fill="#1B3350" stroke="#F0E8D8" stroke-width="3.5"/>
+<path d="M128 304L158 320L128 336Z" fill="#F0E8D8"/>
+
+<!-- RLV-504 valve -->
+<line x1="560" y1="320" x2="560" y2="290" stroke="#F0E8D8" stroke-width="3"/>
+<line x1="544" y1="290" x2="576" y2="290" stroke="#F0E8D8" stroke-width="3.5" stroke-linecap="round"/>
+<path d="M532 300V340L560 320ZM588 300V340L560 320Z" fill="#1B3350" stroke="#F0E8D8" stroke-width="3" stroke-linejoin="round"/>
+<path class="shut" d="M532 300V340L560 320ZM588 300V340L560 320Z" fill="#F0E8D8" stroke="#F0E8D8" stroke-width="3" stroke-linejoin="round"/>
+
+<!-- BF-504 blind flange -->
+<rect class="hit" x="980" y="270" width="34" height="100" rx="6" fill="#F03A2A" filter="url(#glow)"/>
+<rect x="991" y="262" width="12" height="20" rx="3" fill="#F03A2A"/>
+<rect x="988" y="280" width="18" height="80" rx="3" fill="#F03A2A"/>
+
+<!-- labels -->
+<g class="mono" font-size="15">
+  <text x="140" y="378" text-anchor="middle" fill="#F0E8D8">P-A</text>
+  <text x="350" y="302" text-anchor="middle" fill="#B9BFC6">L-PD-A</text>
+  <text x="560" y="378" text-anchor="middle" fill="#F0E8D8">RLV-504</text>
+  <text x="780" y="302" text-anchor="middle" fill="#B9BFC6">L-RL-504</text>
+  <text x="997" y="388" text-anchor="middle" fill="#F0E8D8">BF-504</text>
+  <text x="1110" y="302" text-anchor="end" fill="#7A8696">PSV-504 out</text>
+</g>
+
+<!-- captions -->
+<g class="mono" font-size="15" fill="#B9BFC6">
+  <text class="cap1" x="64" y="250">PTW-0511 starts pump A. Pressure reaches BF-504 in 4 hops; PTW-0504 relies on it.</text>
+  <text class="cap2" x="64" y="250">RLV-504 closed. The walk stops at the valve; the same request is CLEAR.</text>
+</g>
+</svg>
